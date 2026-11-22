@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>منصة متابعة الشغل v2 | لوحة التحكم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#f1f5f9; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --teal:#0d9488; --teal2:#14b8a6; --amber:#f59e0b; --rose:#f43f5e; --blue:#3b82f6; --violet:#8b5cf6; --green:#22c55e;
+    --sidebar:#0f172a; --radius:18px; --shadow:0 10px 30px rgba(15,23,42,.08);
+    --input-bg:#f8fafc;
+  }
+  [data-theme="dark"]{
+    --bg:#0b1220; --card:#111c30; --ink:#e2e8f0; --muted:#94a3b8; --line:#1e2d47;
+    --shadow:0 10px 30px rgba(0,0,0,.35); --input-bg:#0f1b30;
+  }
+  body{font-family:'Tajawal','Cairo',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;transition:background .25s,color .25s}
+  button{font-family:inherit;cursor:pointer;border:none}
+  input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
+  /* ===== AUTH SCREEN ===== */
+  .auth-screen{position:fixed;inset:0;z-index:500;background:linear-gradient(160deg,#0f172a 0%,#134e4a 55%,#0d9488 100%);display:grid;place-items:center;padding:20px;overflow-y:auto}
+  .auth-screen.hidden{display:none}
+  .auth-card{background:#fff;color:#0f172a;width:100%;max-width:440px;border-radius:24px;padding:32px 28px;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+  .auth-card .logo{width:60px;height:60px;border-radius:17px;background:linear-gradient(135deg,var(--teal),var(--teal2));display:grid;place-items:center;font-size:30px;margin-bottom:16px;box-shadow:0 12px 28px rgba(20,184,166,.4)}
+  .auth-card h1{font-family:'Cairo';font-size:24px;font-weight:900}
+  .auth-card .sub{color:#64748b;font-size:14px;margin:6px 0 22px;line-height:1.7}
+  .auth-tabs{display:flex;background:#f1f5f9;border-radius:13px;padding:5px;margin-bottom:20px}
+  .auth-tabs button{flex:1;padding:11px;border-radius:9px;background:transparent;font-weight:800;font-size:14px;color:#64748b}
+  .auth-tabs button.active{background:#fff;color:#0f172a;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+  .auth-field{margin-bottom:14px}
+  .auth-field label{display:block;font-size:12.5px;font-weight:800;color:#334155;margin-bottom:6px}
+  .auth-field input{width:100%;padding:13px 14px;border:1.5px solid #e2e8f0;border-radius:12px;background:#f8fafc;outline:none;font-size:15px}
+  .auth-field input:focus{border-color:#14b8a6;background:#fff;box-shadow:0 0 0 3px rgba(20,184,166,.15)}
+  .auth-btn{width:100%;padding:14px;border-radius:13px;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;font-weight:900;font-size:15.5px;box-shadow:0 10px 24px rgba(13,148,136,.3);margin-top:6px}
+  .auth-btn:disabled{opacity:.6}
+  .auth-guest{width:100%;padding:12px;border-radius:13px;background:transparent;border:1.5px dashed #cbd5e1;color:#64748b;font-weight:800;font-size:13.5px;margin-top:10px}
+  .auth-note{font-size:12px;color:#94a3b8;text-align:center;margin-top:16px;line-height:1.7}
+  .auth-err{background:#fff1f2;border:1px solid #fecdd3;color:#be123c;padding:11px 14px;border-radius:11px;font-size:13px;font-weight:700;margin-bottom:14px;display:none}
+  .auth-err.show{display:block}
+  .auth-ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:11px 14px;border-radius:11px;font-size:13px;font-weight:700;margin-bottom:14px;display:none}
+  .auth-ok.show{display:block}
+  /* ===== APP LAYOUT ===== */
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:260px;background:var(--sidebar);color:#e2e8f0;display:flex;flex-direction:column;position:fixed;inset-inline-start:0;top:0;bottom:0;z-index:50;padding:22px 16px;overflow-y:auto}
+  .brand{display:flex;align-items:center;gap:12px;padding:6px 8px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .logo{width:44px;height:44px;border-radius:13px;background:linear-gradient(135deg,var(--teal),var(--teal2));display:grid;place-items:center;font-size:22px;box-shadow:0 8px 20px rgba(20,184,166,.35);flex-shrink:0}
+  .brand h1{font-family:'Cairo';font-size:19px;line-height:1.1;color:#fff}
+  .brand p{font-size:12px;color:#94a3b8;margin-top:2px}
+  .nav{margin-top:20px;display:flex;flex-direction:column;gap:6px}
+  .nav button{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:12px;background:transparent;color:#cbd5e1;font-size:15px;font-weight:700;text-align:right;transition:.2s}
+  .nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav button.active{background:linear-gradient(135deg,var(--teal),#0f766e);color:#fff;box-shadow:0 8px 20px rgba(13,148,136,.3)}
+  .nav .ico{font-size:19px;width:26px;text-align:center}
+  .nav .count{margin-inline-start:auto;background:rgba(255,255,255,.14);padding:2px 9px;border-radius:999px;font-size:12px}
+  .nav .alert-dot{background:#f43f5e;color:#fff;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:900;margin-inline-start:auto;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+  .sidebar-foot{margin-top:auto;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
+  .sidebar-foot .dot{width:9px;height:9px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 0 4px rgba(34,197,94,.15)}
+  .sidebar-foot p{font-size:12.5px;color:#94a3b8;line-height:1.6;margin-top:8px}
+  .sidebar-foot b{color:#fff;font-size:13px}
+  .user-box{margin-top:12px;background:rgba(255,255,255,.06);border-radius:12px;padding:11px 12px}
+  .user-box .email{font-size:12px;color:#cbd5e1;word-break:break-all;line-height:1.5}
+  .user-box button{width:100%;margin-top:9px;padding:9px;border-radius:9px;background:rgba(244,63,94,.15);color:#fda4af;font-weight:800;font-size:13px;border:1px solid rgba(244,63,94,.3)}
+  .main{flex:1;margin-inline-start:260px;padding:26px 28px 90px;max-width:1400px}
+  .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+  .topbar h2{font-family:'Cairo';font-size:28px;font-weight:900}
+  .topbar .sub{color:var(--muted);font-size:14px;margin-top:4px}
+  .top-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .date-pill{background:var(--card);border:1px solid var(--line);padding:10px 16px;border-radius:999px;font-size:13.5px;font-weight:700;box-shadow:var(--shadow)}
+  .btn{padding:11px 18px;border-radius:12px;font-weight:800;font-size:14px;transition:.2s;display:inline-flex;align-items:center;gap:8px}
+  .btn-primary{background:linear-gradient(135deg,var(--teal),#0f766e);color:#fff;box-shadow:0 8px 20px rgba(13,148,136,.28)}
+  .btn-primary:hover{transform:translateY(-1px)}
+  .btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+  .btn-wa{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+  .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:9px}
+  .btn-danger{background:#fff1f2;color:#e11d48;border:1px solid #fecdd3}
+  .btn-edit{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}
+  .icon-btn{width:42px;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;font-size:18px;box-shadow:var(--shadow)}
+  /* ALERTS */
+  .alerts-banner{border-radius:16px;padding:16px 18px;margin-bottom:20px;display:none}
+  .alerts-banner.show{display:block}
+  .alerts-banner.danger{background:#fff1f2;border:1px solid #fecdd3}
+  .alerts-banner.warn{background:#fffbeb;border:1px solid #fde68a}
+  .alerts-banner.ok{background:#f0fdf4;border:1px solid #bbf7d0}
+  [data-theme="dark"] .alerts-banner.danger{background:#2a1218} [data-theme="dark"] .alerts-banner.warn{background:#2a2210} [data-theme="dark"] .alerts-banner.ok{background:#0f2417}
+  .alerts-banner h4{font-family:'Cairo';font-size:16px;margin-bottom:8px}
+  .alerts-banner ul{list-style:none}
+  .alerts-banner li{font-size:13.5px;padding:5px 0;line-height:1.6}
+  .alerts-banner .row-btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  /* STATS */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .stat::after{content:'';position:absolute;inset-inline-end:-20px;top:-20px;width:80px;height:80px;border-radius:50%;opacity:.1}
+  .stat.c1::after{background:var(--teal)} .stat.c2::after{background:var(--blue)} .stat.c3::after{background:var(--amber)} .stat.c4::after{background:var(--violet)}
+  .stat .top{display:flex;justify-content:space-between;align-items:center}
+  .stat .icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:21px}
+  .c1 .icon{background:#ccfbf1} .c2 .icon{background:#dbeafe} .c3 .icon{background:#fef3c7} .c4 .icon{background:#ede9fe}
+  .stat .num{font-family:'Cairo';font-size:34px;font-weight:900;margin-top:12px;line-height:1}
+  .stat .label{color:var(--muted);font-size:13.5px;font-weight:700;margin-top:6px}
+  .stat .hint{font-size:12px;color:var(--teal);font-weight:800;margin-top:8px}
+  /* PANELS */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:20px}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .panel-head h3{font-family:'Cairo';font-size:18px;font-weight:900;display:flex;align-items:center;gap:9px}
+  .grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:20px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  /* ITEMS */
+  .item{display:flex;gap:14px;padding:15px;border:1px solid var(--line);border-radius:14px;margin-bottom:11px;background:var(--card);transition:.15s}
+  .item:hover{border-color:#cbd5e1;box-shadow:0 6px 18px rgba(15,23,42,.06)}
+  .item .thumb{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+  .item .body{flex:1;min-width:0}
+  .item .title{font-weight:800;font-size:15px}
+  .item .meta{color:var(--muted);font-size:12.5px;margin-top:4px;line-height:1.7}
+  .item .actions{display:flex;gap:6px;align-items:flex-start;flex-shrink:0;flex-wrap:wrap}
+  .badge{display:inline-flex;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:800;white-space:nowrap}
+  .b-teal{background:#ccfbf1;color:#0f766e} .b-blue{background:#dbeafe;color:#1d4ed8} .b-amber{background:#fef3c7;color:#b45309}
+  .b-rose{background:#ffe4e6;color:#be123c} .b-green{background:#dcfce7;color:#15803d} .b-gray{background:#f1f5f9;color:#475569} .b-violet{background:#ede9fe;color:#6d28d9}
+  .empty{text-align:center;padding:36px 16px;color:var(--muted)}
+  .empty .big{font-size:42px;margin-bottom:8px}
+  .empty b{color:var(--ink);font-size:16px}
+  .empty p{font-size:13.5px;margin-top:6px}
+  /* PROGRESS */
+  .progress{height:10px;background:#f1f5f9;border-radius:999px;overflow:hidden;margin-top:10px}
+  [data-theme="dark"] .progress{background:#1e2d47}
+  .progress > div{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--teal),var(--teal2));transition:width .5s}
+  .goal-card{border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;background:var(--card)}
+  .goal-card .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .goal-card .pct{font-family:'Cairo';font-weight:900;font-size:20px;color:var(--teal)}
+  .stepper{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .stepper button{width:32px;height:32px;border-radius:9px;background:#f1f5f9;font-weight:900;font-size:16px;color:#0f172a}
+  [data-theme="dark"] .stepper button{background:#1e2d47;color:#e2e8f0}
+  .stepper input{width:90px;padding:8px;border:1px solid var(--line);border-radius:9px;text-align:center;font-weight:800;background:var(--input-bg)}
+  /* TOOLBAR */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .toolbar input[type=search],.toolbar select{padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);min-width:160px;color:var(--ink)}
+  .toolbar input[type=search]{flex:1;min-width:220px}
+  /* TABLE */
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+  th{background:var(--input-bg);text-align:right;padding:13px 14px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--input-bg)}
+  /* REPORTS */
+  .bar-row{display:flex;align-items:center;gap:12px;margin-bottom:11px}
+  .bar-row .lbl{width:130px;font-size:13px;font-weight:800;flex-shrink:0}
+  .bar-row .track{flex:1;height:12px;background:#f1f5f9;border-radius:999px;overflow:hidden}
+  [data-theme="dark"] .bar-row .track{background:#1e2d47}
+  .bar-row .fill{height:100%;border-radius:999px}
+  .bar-row .val{width:52px;text-align:center;font-weight:900;font-size:13px}
+  .report-num{font-family:'Cairo';font-size:30px;font-weight:900}
+  /* VIEWS */
+  .view{display:none} .view.active{display:block;animation:fade .25s}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  /* MODAL */
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);display:none;place-items:center;z-index:100;padding:16px}
+  .overlay.open{display:grid}
+  .modal{background:var(--card);color:var(--ink);width:100%;max-width:560px;border-radius:20px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto}
+  .modal h3{font-family:'Cairo';font-size:20px;font-weight:900;margin-bottom:4px}
+  .modal .desc{color:var(--muted);font-size:13.5px;margin-bottom:18px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12.5px;font-weight:800;color:var(--muted)}
+  .field input,.field select,.field textarea{padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:var(--input-bg);outline:none;color:var(--ink)}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);background:var(--card);box-shadow:0 0 0 3px rgba(20,184,166,.15)}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+  /* TOAST */
+  .toast{position:fixed;bottom:90px;inset-inline-start:50%;transform:translateX(50%);background:#0f172a;color:#fff;padding:13px 20px;border-radius:13px;font-weight:800;font-size:14px;box-shadow:0 16px 40px rgba(0,0,0,.3);display:none;z-index:200;max-width:90vw;text-align:center}
+  .toast.show{display:block;animation:fade .25s}
+  .banner{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:12px 16px;border-radius:13px;font-size:13.5px;font-weight:700;margin-bottom:18px;display:none}
+  .banner.show{display:block}
+  .loading{text-align:center;padding:40px;color:var(--muted);font-weight:700}
+  .spinner{width:34px;height:34px;border:4px solid #e2e8f0;border-top-color:var(--teal);border-radius:50%;margin:0 auto 12px;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .check{width:26px;height:26px;border-radius:8px;border:2px solid #cbd5e1;background:var(--card);display:grid;place-items:center;font-size:14px;flex-shrink:0;margin-top:2px;transition:.15s;color:#fff}
+  .check.done{background:var(--teal);border-color:var(--teal)}
+  .menu-btn{display:none}
+  /* BOTTOM NAV (mobile) */
+  .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);z-index:60;padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px rgba(0,0,0,.08)}
+  .bottom-nav .row{display:flex;justify-content:space-around}
+  .bottom-nav button{background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:800;color:var(--muted);padding:6px 8px;border-radius:10px;position:relative}
+  .bottom-nav button.active{color:var(--teal)}
+  .bottom-nav .ico{font-size:20px}
+  .bottom-nav .bdot{position:absolute;top:2px;inset-inline-end:8px;background:#f43f5e;color:#fff;font-size:9px;font-weight:900;padding:1px 6px;border-radius:999px}
+  .fab{display:none;position:fixed;bottom:86px;inset-inline-end:18px;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--teal),#0f766e);color:#fff;font-size:26px;box-shadow:0 12px 30px rgba(13,148,136,.45);z-index:61;place-items:center}
+  @media(max-width:1024px){.stats{grid-template-columns:repeat(2,1fr)}.grid2,.grid3,.grid4{grid-template-columns:1fr 1fr}}
+  @media(max-width:820px){
+    .sidebar{transform:translateX(100%);transition:.25s;width:270px}
+    .sidebar.open{transform:none;box-shadow:0 0 60px rgba(0,0,0,.4)}
+    .main{margin-inline-start:0;padding:16px 14px 110px}
+    .menu-btn{display:inline-flex}
+    .topbar h2{font-size:21px}
+    .form-grid{grid-template-columns:1fr}
+    .bottom-nav{display:block}
+    .fab{display:grid}
+    .stats{grid-template-columns:1fr 1fr;gap:10px}
+    .stat{padding:15px} .stat .num{font-size:26px}
+    .grid2,.grid3,.grid4{grid-template-columns:1fr}
+    .item{flex-wrap:wrap}
+    .item .actions{width:100%}
+    .toast{bottom:160px}
+  }
+  @media print{
+    .sidebar,.bottom-nav,.fab,.top-actions,.toolbar,.modal,.toast{display:none!important}
+    .main{margin:0;padding:0}
+    body{background:#fff}
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <button type="button" class="btn btn-ghost btn-sm" onclick="toggleLanguage()">English / العربية</button>
+    <div class="logo">📚</div>
+    <h1>منصة متابعة الشغل</h1>
+    <p class="sub">سجّل دخول عشان بياناتك (الدروس، المواعيد، المهام، الأهداف) تبقى محفوظة وخاصة بيك.</p>
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-ok" id="authOk"></div>
+    <div class="auth-tabs">
+      <button id="tabLogin" class="active" onclick="switchAuth('login')">تسجيل الدخول</button>
+      <button id="tabSignup" onclick="switchAuth('signup')">حساب جديد</button>
+    </div>
+    <form onsubmit="handleAuth(event)">
+      <div class="auth-field"><label>البريد الإلكتروني</label><input type="email" id="authEmail" required placeholder="you@example.com" dir="ltr" style="text-align:left"></div>
+      <div class="auth-field"><label>كلمة المرور</label><input type="password" id="authPass" required minlength="6" placeholder="6 أحرف على الأقل" dir="ltr" style="text-align:left"></div>
+      <button class="auth-btn" id="authBtn" type="submit">🔑 دخول</button>
+    </form>
+    <button class="auth-guest" onclick="enterGuest()">👀 متابعة بدون تسجيل (وضع تجريبي)</button>
+    <p class="auth-note">🔒 بياناتك محفوظة في Supabase ومشروطة بحسابك.<br>أول مرة؟ اعمل "حساب جديد" وهتدخل على طول.</p>
+  </div>
+</div>
+
+<div class="app" id="appRoot" style="display:none">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">📚</div>
+      <div><h1>متابعة الشغل</h1><p>دروس • مواعيد • أهداف • مهام</p></div>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-view="overview" class="active"><span class="ico">🏠</span> نظرة عامة</button>
+      <button data-view="lessons"><span class="ico">📖</span> الدروس <span class="count" id="navLessons">0</span></button>
+      <button data-view="appointments"><span class="ico">📅</span> المواعيد <span class="count" id="navAppts">0</span></button>
+      <button data-view="tasks"><span class="ico">✅</span> المهام المطلوبة <span class="count" id="navTasks">0</span></button>
+      <button data-view="goals"><span class="ico">🎯</span> الأهداف <span class="count" id="navGoals">0</span></button>
+      <button data-view="finances"><span class="ico">💰</span> مصاريف ورسوم الدروس</button>
+      <button data-view="reports"><span class="ico">📊</span> التقارير <span class="alert-dot" id="navAlertDot" style="display:none">!</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="dot" id="connDot"></span> <b id="connText">متصل بـ Supabase</b>
+      <p>بياناتك محفوظة أونلاين في مشروع <b>School</b>.</p>
+      <div class="user-box">
+        <div class="email" id="userEmail">—</div>
+        <button onclick="logout()">🚪 تسجيل الخروج</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h2 id="pageTitle">👋 أهلاً بيك، دي لوحة متابعة شغلك</h2>
+        <p class="sub" id="todayLine"></p>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-ghost menu-btn" onclick="toggleSidebar()">☰ القائمة</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleLanguage()" id="languageButton">English</button>
+        <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="الوضع الليلي">🌙</button>
+        <button class="icon-btn" onclick="enableNotifications()" title="تفعيل تنبيهات المتصفح">🔔</button>
+        <span class="date-pill" id="datePill"></span>
+        <button class="btn btn-primary" onclick="openAdd(currentView)">＋ إضافة جديد</button>
+      </div>
+    </div>
+
+    <div class="banner" id="offlineBanner">⚠️ وضع تجريبي محلي: تعذر الاتصال بـ Supabase، البيانات تُحفظ مؤقتاً في متصفحك فقط.</div>
+
+    <!-- OVERVIEW -->
+    <section class="view active" id="view-overview">
+      <div class="alerts-banner" id="alertsBanner"></div>
+      <div class="stats">
+        <div class="stat c1"><div class="top"><div class="icon">📖</div><span class="badge b-teal">هذا الأسبوع</span></div><div class="num" id="stLessons">0</div><div class="label">دروس مجدولة</div><div class="hint" id="stLessonsHint"></div></div>
+        <div class="stat c2"><div class="top"><div class="icon">📅</div><span class="badge b-blue">قادمة</span></div><div class="num" id="stAppts">0</div><div class="label">مواعيد قادمة</div><div class="hint" id="stApptsHint"></div></div>
+        <div class="stat c3"><div class="top"><div class="icon">✅</div><span class="badge b-amber">متبقية</span></div><div class="num" id="stTasks">0</div><div class="label">مهام مطلوبة منك</div><div class="hint" id="stTasksHint"></div></div>
+        <div class="stat c4"><div class="top"><div class="icon">🎯</div><span class="badge b-violet">متوسط التقدم</span></div><div class="num" id="stGoals">0%</div><div class="label">تقدم الأهداف</div><div class="hint" id="stGoalsHint"></div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-head"><h3>🕐 جدول النهاردة وبكرة</h3><button class="btn btn-ghost btn-sm" onclick="go('lessons')">كل الدروس ←</button></div>
+          <div id="todayList"><div class="loading"><div class="spinner"></div>جاري التحميل...</div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>⚡ مهام مستعجلة</h3><button class="btn btn-ghost btn-sm" onclick="go('tasks')">كل المهام ←</button></div>
+          <div id="urgentList"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>🎯 تقدم أهدافك</h3><button class="btn btn-ghost btn-sm" onclick="go('goals')">كل الأهداف ←</button></div>
+        <div id="goalsPreview"></div>
+      </div>
+    </section>
+
+    <!-- LESSONS -->
+    <section class="view" id="view-lessons">
+      <div class="panel">
+        <div class="panel-head"><h3>📖 الدروس</h3><button class="btn btn-primary btn-sm" onclick="openAdd('lessons')">＋ درس جديد</button></div>
+        <div class="toolbar">
+          <input type="search" id="searchLessons" placeholder="🔍 ابحث عن درس أو مادة..." oninput="renderLessons()">
+          <select id="filterLessonStatus" onchange="renderLessons()"><option value="">كل الحالات</option><option>مخطط</option><option>تم</option><option>ملغي</option></select>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>الدرس</th><th>المادة</th><th>التاريخ</th><th>الوقت</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <tbody id="lessonsBody"></tbody>
+        </table></div>
+        <div id="lessonsEmpty"></div>
+      </div>
+    </section>
+
+    <!-- APPOINTMENTS -->
+    <section class="view" id="view-appointments">
+      <div class="panel">
+        <div class="panel-head"><h3>📅 المواعيد</h3><button class="btn btn-primary btn-sm" onclick="openAdd('appointments')">＋ موعد جديد</button></div>
+        <div class="toolbar">
+          <input type="search" id="searchAppts" placeholder="🔍 ابحث عن موعد..." oninput="renderAppointments()">
+        </div>
+        <div id="apptsList"></div>
+      </div>
+    </section>
+
+    <!-- TASKS -->
+    <section class="view" id="view-tasks">
+      <div class="panel">
+        <div class="panel-head"><h3>✅ المهام المطلوبة منك</h3><button class="btn btn-primary btn-sm" onclick="openAdd('tasks')">＋ مهمة جديدة</button></div>
+        <div class="toolbar">
+          <input type="search" id="searchTasks" placeholder="🔍 ابحث عن مهمة..." oninput="renderTasks()">
+          <select id="filterTaskStatus" onchange="renderTasks()"><option value="">كل الحالات</option><option>لم يبدأ</option><option>قيد التنفيذ</option><option>تم</option></select>
+          <select id="filterTaskPriority" onchange="renderTasks()"><option value="">كل الأولويات</option><option>عالي</option><option>متوسط</option><option>منخفض</option></select>
+        </div>
+        <div id="tasksList"></div>
+      </div>
+    </section>
+
+    <!-- GOALS -->
+    <section class="view" id="view-goals">
+      <div class="panel">
+        <div class="panel-head"><h3>🎯 الأهداف ومتابعة التقدم</h3><button class="btn btn-primary btn-sm" onclick="openAdd('goals')">＋ هدف جديد</button></div>
+        <div class="toolbar"><input type="search" id="searchGoals" placeholder="🔍 ابحث عن هدف..." oninput="renderGoals()"></div>
+        <div id="goalsList"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-finances"><div class="panel"><div class="panel-head"><h3>💰 مصاريف ورسوم الدروس</h3><button class="btn btn-primary btn-sm" onclick="openAdd('finances')">＋ إضافة سجل</button></div><p style="color:var(--muted)">سجّل رسوم كل طالب أو مصروف الدرس. الملخص حسب النوع والعملة، وصافي المقبوض = المقبوض − المصروفات.</p><div class="toolbar"><select id="financeMode" onchange="renderFinances()"><option value="">الكل: أونلاين وحضوري</option><option>أونلاين</option><option>حضوري</option></select><button class="btn btn-ghost btn-sm" onclick="exportFinance()">📥 تصدير CSV</button></div><div id="financeSummary"></div><div id="financeList"></div></div></section>
+    <!-- REPORTS -->
+    <section class="view" id="view-reports">
+      <div class="panel">
+        <div class="panel-head"><h3>📊 التقرير الأسبوعي</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ طباعة التقرير</button>
+            <button class="btn btn-wa btn-sm" onclick="waDailySummary()">💬 ملخص اليوم واتساب</button>
+            <button class="btn btn-wa btn-sm" onclick="waDailySummary(true)">💬 ملخص إلى رقمي</button>
+          </div>
+        </div>
+        <div class="grid4" id="reportNums"></div>
+      </div>
+      <div class="grid2">
+        <div class="panel"><div class="panel-head"><h3>📚 الدروس حسب المادة</h3></div><div id="reportSubjects"></div></div>
+        <div class="panel"><div class="panel-head"><h3>✅ المهام حسب الأولوية</h3></div><div id="reportPriorities"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>🚨 التنبيهات الحالية</h3></div>
+        <div id="reportAlerts"></div>
+      </div>
+      <div class="panel"><div class="panel-head"><h3>📅 التقويم والبريد</h3></div>
+        <p style="color:var(--muted);line-height:1.8">تصدير الدروس والمواعيد إلى ملف تقويم للاستيراد اليدوي في Google Calendar؛ لا تتم المزامنة تلقائياً. التقرير يُفتح في تطبيق البريد للمراجعة والإرسال يدوياً، وليس إرسالاً أسبوعياً تلقائياً.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-ghost" onclick="exportCalendar()">📅 تصدير ملف التقويم ICS</button><button class="btn btn-ghost" onclick="emailReport()">✉️ إعداد تقرير للإرسال</button></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>📥 تصدير البيانات</h3></div>
+        <p style="color:var(--muted);font-size:13.5px;margin-bottom:14px;line-height:1.8">حمّل بياناتك بصيغة CSV تفتح في Excel وجوجل شيت، أو انسخ الملخص وابعتة واتساب.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="exportCSV('lessons')">📖 الدروس CSV</button>
+          <button class="btn btn-ghost" onclick="exportCSV('appointments')">📅 المواعيد CSV</button>
+          <button class="btn btn-ghost" onclick="exportCSV('tasks')">✅ المهام CSV</button>
+          <button class="btn btn-ghost" onclick="exportCSV('goals')">🎯 الأهداف CSV</button>
+          <button class="btn btn-wa" onclick="waDailySummary()">💬 ملخص واتساب</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- BOTTOM NAV (mobile) -->
+<nav class="bottom-nav" id="bottomNav">
+  <div class="row">
+    <button data-view="overview" class="active" onclick="go('overview')"><span class="ico">🏠</span>الرئيسية</button>
+    <button data-view="lessons" onclick="go('lessons')"><span class="ico">📖</span>الدروس</button>
+    <button data-view="appointments" onclick="go('appointments')"><span class="ico">📅</span>المواعيد</button>
+    <button data-view="tasks" onclick="go('tasks')"><span class="ico">✅</span>المهام</button>
+    <button data-view="goals" onclick="go('goals')"><span class="ico">🎯</span>الأهداف</button>
+    <button data-view="finances" onclick="go('finances')"><span class="ico">💰</span>المالية</button>
+    <button data-view="reports" onclick="go('reports')"><span class="ico">📊</span>التقارير<span class="bdot" id="bDot" style="display:none">!</span></button>
+  </div>
+</nav>
+<button class="fab" id="fab" onclick="openAdd(currentView)">＋</button>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="modalTitle">إضافة جديد</h3>
+    <p class="desc" id="modalDesc">املأ البيانات وسيتم الحفظ أونلاين في Supabase</p>
+    <form id="modalForm" onsubmit="saveModal(event)">
+      <div class="form-grid" id="formFields"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">إلغاء</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">💾 حفظ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== Supabase Config ======
+const SUPABASE_URL = "https://mxseuwlhhkqkpgofecoa.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14c2V1d2xoaGtxa3Bnb2ZlY29hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MTkwMzcsImV4cCI6MjEwOTA5NTAzN30.FIDldAqwaE5XlE_PF74p_lR88huAqzqJaO65L7ya6W0";
+let sb = null, online = false, currentUser = null, guestMode = false;
+try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e){ console.warn(e); }
+
+let state = { lessons:[], appointments:[], tasks:[], goals:[], finances:[] };
+let currentView = 'overview';
+let editing = null;
+let authMode = 'login';
+
+// ====== Helpers ======
+const $ = id => document.getElementById(id);
+const fmtDate = d => { if(!d) return '—'; try{ return new Intl.DateTimeFormat('ar-EG',{weekday:'long', day:'numeric', month:'long', year:'numeric'}).format(new Date(d+'T00:00:00')); }catch(e){ return d; } };
+const fmtShort = d => { if(!d) return '—'; try{ return new Intl.DateTimeFormat('ar-EG',{day:'numeric', month:'short'}).format(new Date(d+'T00:00:00')); }catch(e){ return d; } };
+const todayStr = () => new Date().toISOString().slice(0,10);
+function toast(msg){ const t=$('toast'); t.textContent=(typeof uiLanguage!=='undefined' && uiLanguage==='en' && uiTranslations[msg]) || msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function statusBadge(s){
+  const map={'مخطط':'b-blue','تم':'b-green','ملغي':'b-rose','قيد التنفيذ':'b-amber','لم يبدأ':'b-gray','نشط':'b-teal','مكتمل':'b-green','متوقف':'b-gray'};
+  return `<span class="badge ${map[s]||'b-gray'}">${esc(s||'—')}</span>`;
+}
+function priorityBadge(p){
+  const map={'عالي':'b-rose','متوسط':'b-amber','منخفض':'b-gray'};
+  return `<span class="badge ${map[p]||'b-gray'}">${esc(p||'—')}</span>`;
+}
+function toggleSidebar(){ $('sidebar').classList.toggle('open'); }
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', cur);
+  $('themeBtn').textContent = cur==='dark' ? '☀️' : '🌙';
+  try{ localStorage.setItem('wt_theme', cur); }catch(e){}
+}
+try{ const th = localStorage.getItem('wt_theme'); if(th){ document.documentElement.setAttribute('data-theme', th); setTimeout(()=>{ $('themeBtn').textContent = th==='dark'?'☀️':'🌙'; },0);} }catch(e){}
+
+// ====== Auth ======
+function switchAuth(m){
+  authMode = m;
+  $('tabLogin').classList.toggle('active', m==='login');
+  $('tabSignup').classList.toggle('active', m==='signup');
+  $('authBtn').textContent = m==='login' ? '🔑 دخول' : '✨ إنشاء حساب ودخول';
+  $('authErr').classList.remove('show'); $('authOk').classList.remove('show');
+}
+function authError(msg){ const e=$('authErr'); e.textContent=msg; e.classList.add('show'); $('authOk').classList.remove('show'); }
+function authOkMsg(msg){ const e=$('authOk'); e.textContent=msg; e.classList.add('show'); $('authErr').classList.remove('show'); }
+
+async function handleAuth(e){
+  e.preventDefault();
+  const email = $('authEmail').value.trim(), pass = $('authPass').value;
+  const btn = $('authBtn'); btn.disabled=true; btn.textContent='⏳ جاري...';
+  try{
+    if(!sb) throw new Error('Supabase غير متاح');
+    if(authMode==='login'){
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+      if(error) throw error;
+      currentUser = data.user;
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password: pass });
+      if(error) throw error;
+      if(data.session){ currentUser = data.user; }
+      else { authOkMsg('✅ تم إنشاء الحساب! سجّل دخول دلوقتي بنفس البيانات.'); switchAuth('login'); btn.disabled=false; btn.textContent='🔑 دخول'; return; }
+    }
+    enterApp();
+  }catch(err){
+    let msg = err.message||'حدث خطأ';
+    if(msg.includes('Invalid login')) msg = '❌ البريد أو كلمة المرور غلط. جرب تاني أو اعمل حساب جديد.';
+    if(msg.includes('already registered')) msg = 'ℹ️ الحساب موجود بالفعل، سجّل دخول.';
+    if(msg.includes('Password should be')) msg = '❌ كلمة المرور لازم تكون 6 أحرف على الأقل.';
+    authError(msg);
+  }
+  btn.disabled=false; btn.textContent = authMode==='login' ? '🔑 دخول' : '✨ إنشاء حساب ودخول';
+}
+function enterGuest(){
+  guestMode = true; online = false;
+  try{ sessionStorage.setItem('wt_guest','1'); }catch(e){}
+  currentUser = null;
+  enterApp();
+}
+function enterApp(){
+  $('authScreen').classList.add('hidden');
+  $('appRoot').style.display='flex';
+  $('userEmail').textContent = guestMode ? '👀 وضع تجريبي (ضيف)' : (currentUser?.email || '—');
+  loadAll();
+}
+async function logout(){
+  if(!guestMode && sb){ try{ await sb.auth.signOut(); }catch(e){} }
+  guestMode=false; currentUser=null;
+  try{ sessionStorage.removeItem('wt_guest'); }catch(e){}
+  $('appRoot').style.display='none';
+  $('authScreen').classList.remove('hidden');
+  toast('تم تسجيل الخروج 👋');
+}
+async function initAuth(){
+  if(!sb){ enterGuest(); return; }
+  try{
+    const { data } = await sb.auth.getSession();
+    if(data?.session?.user){ currentUser = data.session.user; enterApp(); return; }
+  }catch(e){}
+  let g=false; try{ g = sessionStorage.getItem('wt_guest')==='1'; }catch(e){}
+  if(g){ guestMode=true; enterApp(); return; }
+  // show auth screen (default)
+  $('authScreen').classList.remove('hidden');
+}
+if(sb){
+  sb.auth.onAuthStateChange((event, session)=>{
+    if(session?.user){ currentUser = session.user; guestMode=false; if($('authScreen').classList.contains('hidden')===false) enterApp(); }
+  });
+}
+
+// ====== Navigation ======
+document.querySelectorAll('#nav button').forEach(b=>{
+  b.addEventListener('click',()=>{ go(b.dataset.view); $('sidebar').classList.remove('open'); });
+});
+function go(view){
+  currentView = view;
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+view));
+  const titles={overview:'👋 أهلاً بيك، دي لوحة متابعة شغلك',lessons:'📖 الدروس',appointments:'📅 المواعيد',tasks:'✅ المهام المطلوبة منك',goals:'🎯 الأهداف',finances:'💰 مصاريف ورسوم الدروس',reports:'📊 التقارير والتصدير'};
+  $('pageTitle').textContent = titles[view];
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ====== Data Loading ======
+async function loadAll(){
+  if(!sb || guestMode || !currentUser){ online=false; useLocal(); finishLoad(); return; }
+  try{
+    const [l,a,t,g,f] = await Promise.all([
+      sb.from('tracker_lessons').select('*').order('lesson_date',{ascending:true}),
+      sb.from('tracker_appointments').select('*').order('appointment_date',{ascending:true}),
+      sb.from('tracker_tasks').select('*').order('due_date',{ascending:true}),
+      sb.from('tracker_goals').select('*').order('created_at',{ascending:false}),
+      sb.from('tracker_finances').select('*').order('entry_date',{ascending:false}),
+    ]);
+    if(l.error||a.error||t.error||g.error||f.error) throw new Error(l.error?.message||a.error?.message||t.error?.message||g.error?.message||f.error?.message);
+    state = { lessons:l.data||[], appointments:a.data||[], tasks:t.data||[], goals:g.data||[], finances:f.data||[] };
+    online = true;
+  }catch(e){
+    console.warn('Supabase load failed, local mode:', e);
+    online = false; useLocal();
+  }
+  finishLoad();
+}
+function finishLoad(){
+  $('connDot').style.background = online ? '#22c55e' : '#f59e0b';
+  $('connText').textContent = online ? 'متصل بـ Supabase' : 'وضع محلي تجريبي';
+  $('offlineBanner').classList.toggle('show', !online);
+  renderAll();
+  maybeNotify();
+}
+function useLocal(){
+  try{
+    const raw = localStorage.getItem('worktracker_local');
+    if(raw){ state = JSON.parse(raw); state.finances ||= []; return; }
+  }catch(e){}
+  state = {
+    lessons:[{id:'1',title:'درس كيمياء - الباب الأول',subject:'كيمياء',lesson_date:todayStr(),start_time:'10:00',end_time:'11:30',status:'مخطط',notes:'مراجعة الخواص الدورية'}],
+    appointments:[{id:'1',title:'اجتماع مع إدارة المدرسة',appointment_date:todayStr(),start_time:'09:00',location:'المدرسة',notes:''}],
+    tasks:[{id:'1',title:'تحضير درس الغد',description:'تجهيز العرض التقديمي',priority:'عالي',due_date:todayStr(),status:'قيد التنفيذ',category:'تحضير'}],
+    goals:[{id:'1',title:'إنهاء منهج الترم الأول',description:'',target_value:100,current_value:35,unit:'%',deadline:'',status:'نشط'}]
+  };
+  state.finances = [];
+  saveLocal();
+}
+function saveLocal(){ try{ localStorage.setItem('worktracker_local', JSON.stringify(state)); }catch(e){} }
+
+async function dbUpsert(type, row){
+  if(online && sb){
+    const table = {lessons:'tracker_lessons',appointments:'tracker_appointments',tasks:'tracker_tasks',goals:'tracker_goals',finances:'tracker_finances'}[type];
+    if(!currentUser) throw new Error('سجّل الدخول أولاً');
+    row.user_id = currentUser.id;
+    const { data, error } = await sb.from(table).upsert(row).select().single();
+    if(error) throw error;
+    Object.assign(row, data);
+  } else saveLocal();
+}
+async function dbDelete(type, id){
+  if(online && sb){
+    const table = {lessons:'tracker_lessons',appointments:'tracker_appointments',tasks:'tracker_tasks',goals:'tracker_goals',finances:'tracker_finances'}[type];
+    const { error } = await sb.from(table).delete().eq('id', id);
+    if(error) throw error;
+  } else saveLocal();
+}
+
+// ====== Alerts Engine ======
+function computeAlerts(){
+  const t = todayStr();
+  const overdue = state.tasks.filter(x=>x.status!=='تم' && x.due_date && x.due_date < t);
+  const dueToday = state.tasks.filter(x=>x.status!=='تم' && x.due_date===t);
+  const lessonsToday = state.lessons.filter(x=>x.lesson_date===t && x.status!=='ملغي');
+  const apptsToday = state.appointments.filter(x=>x.appointment_date===t);
+  const goalsSoon = state.goals.filter(x=>x.status==='نشط' && x.deadline && x.deadline>=t && x.deadline<=addDays(t,7));
+  return { overdue, dueToday, lessonsToday, apptsToday, goalsSoon, total: overdue.length+dueToday.length+lessonsToday.length+apptsToday.length+goalsSoon.length };
+}
+function addDays(dateStr, n){ const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+
+function renderAlerts(){
+  const a = computeAlerts();
+  const banner = $('alertsBanner');
+  const hasDot = a.overdue.length>0;
+  $('navAlertDot').style.display = hasDot ? 'inline-block' : 'none';
+  $('bDot').style.display = hasDot ? 'inline-block' : 'none';
+  if(a.total===0){
+    banner.className='alerts-banner ok show';
+    banner.innerHTML = `<h4>✅ كل حاجة تمام!</h4><ul><li>مفيش مهام متأخرة ولا حاجة مستعجلة النهاردة.</li></ul>
+      <div class="row-btns"><button class="btn btn-ghost btn-sm" onclick="enableNotifications()">🔔 تفعيل تنبيهات المتصفح</button>
+      <button class="btn btn-wa btn-sm" onclick="waDailySummary()">💬 ملخص اليوم واتساب</button></div>`;
+    return;
+  }
+  const level = a.overdue.length ? 'danger' : 'warn';
+  banner.className = `alerts-banner ${level} show`;
+  let items='';
+  if(a.overdue.length) items += `<li>🚨 <b>${a.overdue.length} مهمة متأخرة:</b> ${a.overdue.map(x=>esc(x.title)).join('، ')}</li>`;
+  if(a.dueToday.length) items += `<li>⏰ <b>${a.dueToday.length} مهمة مستحقة النهاردة:</b> ${a.dueToday.map(x=>esc(x.title)).join('، ')}</li>`;
+  if(a.lessonsToday.length) items += `<li>📖 <b>${a.lessonsToday.length} درس النهاردة:</b> ${a.lessonsToday.map(x=>esc(x.title)+(x.start_time?' ('+esc(x.start_time)+')':'')).join('، ')}</li>`;
+  if(a.apptsToday.length) items += `<li>📅 <b>${a.apptsToday.length} موعد النهاردة:</b> ${a.apptsToday.map(x=>esc(x.title)).join('، ')}</li>`;
+  if(a.goalsSoon.length) items += `<li>🎯 <b>هدف بيقرب ينتهي:</b> ${a.goalsSoon.map(x=>esc(x.title)+' ('+fmtShort(x.deadline)+')').join('، ')}</li>`;
+  banner.innerHTML = `<h4>🔔 تنبيهات مهمة (${a.total})</h4><ul>${items}</ul>
+    <div class="row-btns">
+      <button class="btn btn-ghost btn-sm" onclick="enableNotifications()">🔔 تفعيل تنبيهات المتصفح</button>
+      <button class="btn btn-wa btn-sm" onclick="waDailySummary()">💬 ملخص اليوم واتساب</button>
+      <button class="btn btn-ghost btn-sm" onclick="go('reports')">📊 شوف التقارير</button>
+    </div>`;
+  // reports alerts list
+  $('reportAlerts').innerHTML = items ? `<ul style="list-style:none">${items}</ul>` : '<div class="empty"><div class="big">✅</div><b>مفيش تنبيهات</b></div>';
+}
+
+async function enableNotifications(){
+  if(!('Notification' in window)){ toast('المتصفح لا يدعم التنبيهات'); return; }
+  const perm = await Notification.requestPermission();
+  if(perm==='granted'){ toast('🔔 التنبيهات اتفعّلت!'); maybeNotify(true); }
+  else toast('❌ تم رفض إذن التنبيهات');
+}
+function maybeNotify(force){
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  const a = computeAlerts();
+  if(a.total===0) return;
+  const key = 'wt_notify_'+todayStr();
+  try{ if(!force && sessionStorage.getItem(key)) return; sessionStorage.setItem(key,'1'); }catch(e){}
+  new Notification('🔔 منصة متابعة الشغل', { body: `${a.overdue.length? a.overdue.length+' مهام متأخرة. ':''}${a.lessonsToday.length? a.lessonsToday.length+' دروس النهاردة. ':''}${a.dueToday.length? a.dueToday.length+' مهام مستحقة النهاردة.':''}`.trim() });
+}
+
+// ====== WhatsApp ======
+function waShare(text, phone=''){ window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(text),'_blank'); }
+async function waDailySummary(toSelf=false){
+  let phone='';
+  if(toSelf){ if(!sb||!currentUser||guestMode){ toast('سجّل الدخول لاستخدام رقمك المحفوظ'); return; } const {data,error}=await sb.from('tracker_notification_settings').select('whatsapp_phone').eq('user_id',currentUser.id).maybeSingle(); if(error||!data?.whatsapp_phone){toast('تعذر تحميل رقم واتساب');return;} phone=data.whatsapp_phone.replace(/\D/g,''); }
+  const a = computeAlerts();
+  const t = todayStr();
+  const lines = [`📚 *ملخص شغلي - ${fmtDate(t)}*`, ''];
+  lines.push(`📖 دروس النهاردة (${a.lessonsToday.length}):`);
+  a.lessonsToday.forEach(l=>lines.push(`• ${l.title}${l.start_time?' - '+l.start_time:''}`));
+  lines.push('', `📅 مواعيد النهاردة (${a.apptsToday.length}):`);
+  a.apptsToday.forEach(x=>lines.push(`• ${x.title}${x.start_time?' - '+x.start_time:''}`));
+  lines.push('', `✅ مهام مستحقة النهاردة (${a.dueToday.length}):`);
+  a.dueToday.forEach(x=>lines.push(`• ${x.title} [${x.priority}]`));
+  if(a.overdue.length){ lines.push('', `🚨 مهام متأخرة (${a.overdue.length}):`); a.overdue.forEach(x=>lines.push(`• ${x.title} (كان مستحق ${x.due_date})`)); }
+  lines.push('', `🎯 أهداف نشطة: ${state.goals.filter(g=>g.status==='نشط').length}`);
+  waShare(lines.join('\n'),phone);
+}
+function waTask(id){
+  const t = state.tasks.find(x=>x.id===id); if(!t) return;
+  waShare(`✅ *مهمة مطلوبة مني*\n${t.title}\nالأولوية: ${t.priority}\nالاستحقاق: ${t.due_date||'—'}\nالحالة: ${t.status}${t.description?'\n'+t.description:''}`);
+}
+function waLesson(id){
+  const l = state.lessons.find(x=>x.id===id); if(!l) return;
+  waShare(`📖 *درس*\n${l.title}\nالمادة: ${l.subject||'—'}\nالتاريخ: ${l.lesson_date||'—'} ${l.start_time||''}\nالحالة: ${l.status}`);
+}
+function waAppt(id){
+  const a = state.appointments.find(x=>x.id===id); if(!a) return;
+  waShare(`📅 *موعد*\n${a.title}\nالتاريخ: ${a.appointment_date||'—'} ${a.start_time||''}\nالمكان: ${a.location||'—'}`);
+}
+
+// ====== Reports & Export ======
+function renderReports(){
+  const now=new Date(), day=now.getDay();
+  const monday=new Date(now); monday.setDate(now.getDate()-((day+6)%7));
+  const sunday=new Date(now); sunday.setDate(monday.getDate()+6);
+  const ms=monday.toISOString().slice(0,10), ss=sunday.toISOString().slice(0,10);
+  const weekLessons = state.lessons.filter(l=>l.lesson_date>=ms && l.lesson_date<=ss);
+  const doneLessons = weekLessons.filter(l=>l.status==='تم').length;
+  const totalTasks = state.tasks.length, doneTasks = state.tasks.filter(t=>t.status==='تم').length;
+  const taskPct = totalTasks? Math.round(doneTasks/totalTasks*100):0;
+  const avgGoal = state.goals.length? Math.round(state.goals.reduce((s,g)=>s+(g.target_value?Math.min(100,(g.current_value/g.target_value)*100):0),0)/state.goals.length):0;
+  const a = computeAlerts();
+  $('reportNums').innerHTML = `
+    <div class="panel" style="margin:0"><div class="report-num">${weekLessons.length}</div><div style="color:var(--muted);font-size:13px;font-weight:700">📖 دروس هذا الأسبوع<br>تم منها: ${doneLessons}</div></div>
+    <div class="panel" style="margin:0"><div class="report-num">${taskPct}%</div><div style="color:var(--muted);font-size:13px;font-weight:700">✅ نسبة إنجاز المهام<br>${doneTasks} من ${totalTasks}</div></div>
+    <div class="panel" style="margin:0"><div class="report-num">${avgGoal}%</div><div style="color:var(--muted);font-size:13px;font-weight:700">🎯 متوسط تقدم الأهداف<br>${state.goals.length} أهداف</div></div>
+    <div class="panel" style="margin:0"><div class="report-num" style="color:${a.overdue.length?'#f43f5e':'inherit'}">${a.overdue.length}</div><div style="color:var(--muted);font-size:13px;font-weight:700">🚨 مهام متأخرة<br>تحتاج متابعة فورية</div></div>`;
+  // subjects
+  const subj = {};
+  state.lessons.forEach(l=>{ const k=l.subject||'بدون مادة'; subj[k]=(subj[k]||0)+1; });
+  const maxS = Math.max(1,...Object.values(subj));
+  const colors=['#0d9488','#3b82f6','#f59e0b','#8b5cf6','#f43f5e','#22c55e'];
+  $('reportSubjects').innerHTML = Object.keys(subj).length ? Object.entries(subj).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>`
+    <div class="bar-row"><span class="lbl">${esc(k)}</span><div class="track"><div class="fill" style="width:${v/maxS*100}%;background:${colors[i%colors.length]}"></div></div><span class="val">${v}</span></div>`).join('')
+    : '<div class="empty"><b>لا توجد دروس بعد</b></div>';
+  // priorities
+  const pr = {'عالي':0,'متوسط':0,'منخفض':0};
+  state.tasks.forEach(t=>{ if(pr[t.priority]!==undefined) pr[t.priority]++; });
+  const maxP = Math.max(1,...Object.values(pr));
+  const pColors={'عالي':'#f43f5e','متوسط':'#f59e0b','منخفض':'#64748b'};
+  $('reportPriorities').innerHTML = Object.entries(pr).map(([k,v])=>`
+    <div class="bar-row"><span class="lbl">${k}</span><div class="track"><div class="fill" style="width:${v/maxP*100}%;background:${pColors[k]}"></div></div><span class="val">${v}</span></div>`).join('')
+    + `<p style="font-size:12.5px;color:var(--muted);margin-top:10px">✅ المنجزة: ${doneTasks} • ⏳ المتبقية: ${totalTasks-doneTasks}</p>`;
+}
+function downloadCSV(filename, headers, rows){
+  const csv = [headers.join(','), ...rows.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(','))].join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  toast('📥 تم تحميل '+filename);
+}
+function exportCSV(type){
+  if(type==='lessons') downloadCSV('lessons.csv',['العنوان','المادة','التاريخ','من','إلى','الحالة','ملاحظات'], state.lessons.map(l=>[l.title,l.subject,l.lesson_date,l.start_time,l.end_time,l.status,l.notes]));
+  if(type==='appointments') downloadCSV('appointments.csv',['العنوان','التاريخ','الساعة','المكان','ملاحظات'], state.appointments.map(a=>[a.title,a.appointment_date,a.start_time,a.location,a.notes]));
+  if(type==='tasks') downloadCSV('tasks.csv',['المهمة','التفاصيل','الأولوية','الاستحقاق','الحالة','التصنيف'], state.tasks.map(t=>[t.title,t.description,t.priority,t.due_date,t.status,t.category]));
+  if(type==='goals') downloadCSV('goals.csv',['الهدف','الوصف','المستهدف','الحالي','الوحدة','الموعد النهائي','الحالة'], state.goals.map(g=>[g.title,g.description,g.target_value,g.current_value,g.unit,g.deadline,g.status]));
+}
+
+// ====== Render ======
+function renderAll(){ renderStats(); renderAlerts(); renderToday(); renderUrgent(); renderGoalsPreview(); renderLessons(); renderAppointments(); renderTasks(); renderGoals(); renderReports(); renderFinances(); updateNavCounts(); }
+
+function updateNavCounts(){
+  $('navLessons').textContent = state.lessons.length;
+  $('navAppts').textContent = state.appointments.length;
+  $('navTasks').textContent = state.tasks.filter(t=>t.status!=='تم').length;
+  $('navGoals').textContent = state.goals.length;
+}
+
+function renderStats(){
+  const now = new Date(); const day = now.getDay();
+  const monday = new Date(now); monday.setDate(now.getDate() - ((day+6)%7));
+  const sunday = new Date(now); sunday.setDate(monday.getDate()+6);
+  const inWeek = state.lessons.filter(l=>{ if(!l.lesson_date) return false; const d=new Date(l.lesson_date+'T00:00:00'); return d>=monday && d<=sunday; });
+  $('stLessons').textContent = inWeek.length;
+  $('stLessonsHint').textContent = inWeek.length ? `أقرب درس: ${fmtShort(inWeek[0]?.lesson_date)}` : 'لا دروس هذا الأسبوع';
+  const upcoming = state.appointments.filter(a=>a.appointment_date && a.appointment_date >= todayStr());
+  $('stAppts').textContent = upcoming.length;
+  $('stApptsHint').textContent = upcoming.length ? `القادم: ${fmtShort(upcoming[0]?.appointment_date)}` : 'لا مواعيد قادمة';
+  const pending = state.tasks.filter(t=>t.status!=='تم');
+  $('stTasks').textContent = pending.length;
+  $('stTasksHint').textContent = pending.some(t=>t.priority==='عالي') ? '⚠️ عندك مهام عالية الأولوية' : 'كل حاجة تحت السيطرة';
+  const avg = state.goals.length ? Math.round(state.goals.reduce((s,g)=> s + (g.target_value? Math.min(100,(g.current_value/g.target_value)*100):0),0)/state.goals.length) : 0;
+  $('stGoals').textContent = avg + '%';
+  $('stGoalsHint').textContent = state.goals.length ? `${state.goals.filter(g=>g.status==='نشط').length} أهداف نشطة` : 'أضف هدفك الأول';
+}
+
+function renderToday(){
+  const t = todayStr();
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const tm = tomorrow.toISOString().slice(0,10);
+  const items = [
+    ...state.lessons.filter(l=>l.lesson_date===t||l.lesson_date===tm).map(l=>({...l,kind:'lesson'})),
+    ...state.appointments.filter(a=>a.appointment_date===t||a.appointment_date===tm).map(a=>({...a,kind:'appt'})),
+  ].sort((a,b)=> (a.start_time||'99') > (b.start_time||'99') ? 1 : -1);
+  const box = $('todayList');
+  if(!items.length){ box.innerHTML = `<div class="empty"><div class="big">🌤️</div><b>مفيش حاجة النهاردة وبكرة</b><p>استمتع بيومك أو أضف درس / موعد جديد</p></div>`; return; }
+  box.innerHTML = items.map(i=>{
+    const isLesson = i.kind==='lesson';
+    const when = i.lesson_date===t ? 'النهاردة' : 'بكرة';
+    return `<div class="item">
+      <div class="thumb" style="background:${isLesson?'#ccfbf1':'#dbeafe'}">${isLesson?'📖':'📅'}</div>
+      <div class="body"><div class="title">${esc(i.title)}</div>
+      <div class="meta">${when} • ${fmtShort(i.lesson_date)} ${i.start_time? '• '+esc(i.start_time):''} ${i.subject? '• '+esc(i.subject):''} ${i.location? '• 📍 '+esc(i.location):''}</div></div>
+      ${isLesson? statusBadge(i.status):'<span class="badge b-blue">موعد</span>'}
+    </div>`;
+  }).join('');
+}
+
+function renderUrgent(){
+  const pending = state.tasks.filter(t=>t.status!=='تم').sort((a,b)=>{
+    const rank = p => p==='عالي'?0:p==='متوسط'?1:2;
+    return rank(a.priority)-rank(b.priority) || (a.due_date||'9999') > (b.due_date||'9999') ? 1 : -1;
+  }).slice(0,5);
+  const box = $('urgentList');
+  if(!pending.length){ box.innerHTML = `<div class="empty"><div class="big">🎉</div><b>كل المهام خلصت!</b><p>مفيش مهام معلقة دلوقتي</p></div>`; return; }
+  box.innerHTML = pending.map(t=>`
+    <div class="item">
+      <button class="check" onclick="toggleTask('${t.id}')" title="إتمام">✓</button>
+      <div class="body"><div class="title">${esc(t.title)}</div>
+      <div class="meta">الاستحقاق: ${fmtShort(t.due_date)} ${t.category? '• '+esc(t.category):''}</div></div>
+      ${priorityBadge(t.priority)}
+    </div>`).join('');
+}
+
+function goalProgress(g){ return g.target_value ? Math.min(100, Math.round((g.current_value/g.target_value)*100)) : 0; }
+function goalCard(g, compact=false){
+  const pct = goalProgress(g);
+  return `<div class="goal-card">
+    <div class="row"><div><div class="title" style="font-weight:800">${esc(g.title)}</div>
+    <div class="meta" style="color:var(--muted);font-size:12.5px;margin-top:3px">${g.description?esc(g.description)+' • ':''}الهدف: ${g.target_value} ${esc(g.unit||'')} ${g.deadline? '• ينتهي '+fmtShort(g.deadline):''}</div></div>
+    <div style="text-align:center"><div class="pct">${pct}%</div>${statusBadge(g.status)}</div></div>
+    <div class="progress"><div style="width:${pct}%"></div></div>
+    ${compact?'':`<div class="stepper">
+      <button onclick="stepGoal('${g.id}',-1)">−</button>
+      <input type="number" value="${g.current_value}" onchange="setGoalValue('${g.id}', this.value)">
+      <button onclick="stepGoal('${g.id}',1)">＋</button>
+      <span style="font-size:12.5px;color:var(--muted);font-weight:700">من ${g.target_value} ${esc(g.unit||'')}</span>
+      <span style="flex:1"></span>
+      <button class="btn btn-edit btn-sm" onclick="openEdit('goals','${g.id}')">✏️ تعديل</button>
+      <button class="btn btn-danger btn-sm" onclick="delItem('goals','${g.id}')">🗑 حذف</button>
+    </div>`}
+  </div>`;
+}
+function renderGoalsPreview(){
+  const box = $('goalsPreview');
+  if(!state.goals.length){ box.innerHTML = `<div class="empty"><div class="big">🎯</div><b>لسه مفيش أهداف</b><p>أضف هدفك الأول وابدأ تتبع تقدمك</p></div>`; return; }
+  box.innerHTML = state.goals.slice(0,3).map(g=>goalCard(g,true)).join('');
+}
+function renderGoals(){
+  const q = ($('searchGoals').value||'').trim();
+  const list = state.goals.filter(g=>!q || g.title.includes(q));
+  const box = $('goalsList');
+  if(!list.length){ box.innerHTML = `<div class="empty"><div class="big">🎯</div><b>لا توجد أهداف</b><p>اضغط "هدف جديد" وابدأ</p></div>`; return; }
+  box.innerHTML = list.map(g=>goalCard(g)).join('');
+}
+
+function renderLessons(){
+  const q = ($('searchLessons').value||'').trim();
+  const f = $('filterLessonStatus').value;
+  const list = state.lessons.filter(l=>(!q || (l.title||'').includes(q) || (l.subject||'').includes(q)) && (!f || l.status===f));
+  const body = $('lessonsBody');
+  if(!list.length){ body.innerHTML=''; $('lessonsEmpty').innerHTML = `<div class="empty"><div class="big">📖</div><b>لا توجد دروس</b><p>أضف أول درس ليك</p></div>`; return; }
+  $('lessonsEmpty').innerHTML='';
+  body.innerHTML = list.map(l=>`<tr>
+    <td><b>${esc(l.title)}</b>${l.notes?`<div style="color:var(--muted);font-size:12px;margin-top:3px">${esc(l.notes)}</div>`:''}</td>
+    <td>${esc(l.subject||'—')}</td>
+    <td>${fmtDate(l.lesson_date)}</td>
+    <td>${esc(l.start_time||'—')}${l.end_time? ' - '+esc(l.end_time):''}</td>
+    <td>${statusBadge(l.status)}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-edit btn-sm" onclick="openEdit('lessons','${l.id}')">✏️</button>
+      <button class="btn btn-ghost btn-sm" onclick="duplicateItem('lessons','${l.id}')" title="نسخ">📋</button>
+      <button class="btn btn-wa btn-sm" onclick="waLesson('${l.id}')" title="واتساب">💬</button>
+      <button class="btn btn-danger btn-sm" onclick="delItem('lessons','${l.id}')">🗑</button>
+    </td></tr>`).join('');
+}
+
+function renderAppointments(){
+  const q = ($('searchAppts').value||'').trim();
+  const list = state.appointments.filter(a=>!q || (a.title||'').includes(q));
+  const box = $('apptsList');
+  if(!list.length){ box.innerHTML = `<div class="empty"><div class="big">📅</div><b>لا توجد مواعيد</b><p>أضف موعدك القادم</p></div>`; return; }
+  box.innerHTML = list.map(a=>`<div class="item">
+    <div class="thumb" style="background:#dbeafe">📅</div>
+    <div class="body"><div class="title">${esc(a.title)}</div>
+    <div class="meta">${fmtDate(a.appointment_date)} ${a.start_time? '• '+esc(a.start_time):''} ${a.location? '• 📍 '+esc(a.location):''} ${a.notes? '• '+esc(a.notes):''}</div></div>
+    <div class="actions"><button class="btn btn-edit btn-sm" onclick="openEdit('appointments','${a.id}')">✏️ تعديل</button>
+    <button class="btn btn-wa btn-sm" onclick="waAppt('${a.id}')">💬</button>
+    <button class="btn btn-danger btn-sm" onclick="delItem('appointments','${a.id}')">🗑 حذف</button></div>
+  </div>`).join('');
+}
+
+function renderTasks(){
+  const q = ($('searchTasks').value||'').trim();
+  const fs = $('filterTaskStatus').value, fp = $('filterTaskPriority').value;
+  const list = state.tasks.filter(t=>(!q || (t.title||'').includes(q)) && (!fs || t.status===fs) && (!fp || t.priority===fp));
+  const box = $('tasksList');
+  if(!list.length){ box.innerHTML = `<div class="empty"><div class="big">✅</div><b>لا توجد مهام</b><p>أضف مهمة مطلوبة منك</p></div>`; return; }
+  box.innerHTML = list.map(t=>{
+    const done = t.status==='تم';
+    const overdue = !done && t.due_date && t.due_date < todayStr();
+    return `<div class="item" style="${done?'opacity:.65':''}${overdue?';border-color:#fecdd3;background:#fff5f5':''}">
+      <button class="check ${done?'done':''}" onclick="toggleTask('${t.id}')" title="إتمام / إعادة فتح">${done?'✓':''}</button>
+      <div class="body"><div class="title" style="${done?'text-decoration:line-through':''}">${esc(t.title)} ${overdue?'<span class="badge b-rose">متأخرة 🚨</span>':''}</div>
+      <div class="meta">${t.description?esc(t.description)+' • ':''}الاستحقاق: ${fmtShort(t.due_date)} ${t.category? '• '+esc(t.category):''}</div></div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${priorityBadge(t.priority)}${statusBadge(t.status)}</div>
+      <div class="actions"><button class="btn btn-edit btn-sm" onclick="openEdit('tasks','${t.id}')">✏️</button>
+      <button class="btn btn-wa btn-sm" onclick="waTask('${t.id}')">💬</button>
+      <button class="btn btn-danger btn-sm" onclick="delItem('tasks','${t.id}')">🗑</button></div>
+    </div>`;
+  }).join('');
+}
+
+// ====== Actions ======
+async function toggleTask(id){
+  const t = state.tasks.find(x=>x.id===id); if(!t) return;
+  t.status = t.status==='تم' ? 'قيد التنفيذ' : 'تم';
+  await dbUpsert('tasks', t); renderAll(); toast(t.status==='تم' ? '🎉 برافو! المهمة اتمت' : 'تمت إعادة فتح المهمة');
+}
+async function stepGoal(id, delta){
+  const g = state.goals.find(x=>x.id===id); if(!g) return;
+  g.current_value = Math.max(0, (Number(g.current_value)||0) + delta);
+  if(g.target_value && g.current_value>=g.target_value) g.status='مكتمل';
+  await dbUpsert('goals', g); renderAll();
+}
+async function setGoalValue(id, val){
+  const g = state.goals.find(x=>x.id===id); if(!g) return;
+  g.current_value = Math.max(0, Number(val)||0);
+  if(g.target_value && g.current_value>=g.target_value) g.status='مكتمل';
+  await dbUpsert('goals', g); renderAll(); toast('تم تحديث التقدم ✅');
+}
+async function delItem(type, id){
+  if(!confirm('متأكد عايز تحذف العنصر ده؟')) return;
+  await dbDelete(type, id);
+  state[type] = state[type].filter(x=>x.id!==id);
+  if(!online) saveLocal();
+  renderAll(); toast('تم الحذف 🗑');
+}
+async function duplicateItem(type, id){
+  const item = state[type].find(x=>x.id===id); if(!item) return;
+  const copy = {...item, title: (item.title||'') + ' (نسخة)'};
+  delete copy.id; delete copy.created_at;
+  if(!online) copy.id = 'local-'+Date.now();
+  await dbUpsert(type, copy);
+  state[type].push(copy);
+  renderAll(); toast('📋 تم النسخ');
+}
+
+// ====== Modal / Forms ======
+const FORM_DEFS = {
+  finances: {title:'💰 سجل مالي جديد',fields:[
+   {k:'title',label:'الدرس أو وصف المصروف',type:'text',req:1,full:1},
+   {k:'kind',label:'نوع السجل',type:'select',opts:['رسوم طالب','مصروف']},
+   {k:'mode',label:'نوع الدرس',type:'select',opts:['أونلاين','حضوري']},
+   {k:'student',label:'اسم الطالب (للرسوم)',type:'text'},
+   {k:'entry_date',label:'التاريخ',type:'date',req:1},
+   {k:'amount',label:'إجمالي الرسوم أو المصروف',type:'number',req:1},
+   {k:'paid',label:'المقبوض من الطالب (للمصروف أدخل صفر)',type:'number',req:1},
+   {k:'currency',label:'العملة، مثلاً SAR أو EGP',type:'text',req:1},
+   {k:'notes',label:'ملاحظات',type:'textarea',full:1}
+  ]},
+  lessons: { title:'📖 درس جديد', fields:[
+    {k:'title',label:'عنوان الدرس',type:'text',req:1,full:1},
+    {k:'subject',label:'المادة',type:'text'},
+    {k:'lesson_date',label:'التاريخ',type:'date'},
+    {k:'start_time',label:'من الساعة',type:'time'},
+    {k:'end_time',label:'إلى الساعة',type:'time'},
+    {k:'status',label:'الحالة',type:'select',opts:['مخطط','تم','ملغي']},
+    {k:'notes',label:'ملاحظات',type:'textarea',full:1},
+  ]},
+  appointments: { title:'📅 موعد جديد', fields:[
+    {k:'title',label:'عنوان الموعد',type:'text',req:1,full:1},
+    {k:'appointment_date',label:'التاريخ',type:'date'},
+    {k:'start_time',label:'الساعة',type:'time'},
+    {k:'location',label:'المكان',type:'text'},
+    {k:'notes',label:'ملاحظات',type:'textarea',full:1},
+  ]},
+  tasks: { title:'✅ مهمة جديدة', fields:[
+    {k:'title',label:'المهمة المطلوبة',type:'text',req:1,full:1},
+    {k:'description',label:'تفاصيل',type:'textarea',full:1},
+    {k:'priority',label:'الأولوية',type:'select',opts:['عالي','متوسط','منخفض']},
+    {k:'status',label:'الحالة',type:'select',opts:['لم يبدأ','قيد التنفيذ','تم']},
+    {k:'due_date',label:'تاريخ الاستحقاق',type:'date'},
+    {k:'category',label:'التصنيف',type:'text',placeholder:'تحضير / تصحيح / إدارة...'},
+  ]},
+  goals: { title:'🎯 هدف جديد', fields:[
+    {k:'title',label:'عنوان الهدف',type:'text',req:1,full:1},
+    {k:'description',label:'وصف الهدف',type:'textarea',full:1},
+    {k:'target_value',label:'القيمة المستهدفة',type:'number'},
+    {k:'current_value',label:'القيمة الحالية',type:'number'},
+    {k:'unit',label:'الوحدة',type:'text',placeholder:'% / درس / صفحة...'},
+    {k:'deadline',label:'الموعد النهائي',type:'date'},
+    {k:'status',label:'الحالة',type:'select',opts:['نشط','مكتمل','متوقف']},
+  ]},
+};
+let modalType = 'lessons';
+
+function openAdd(type){
+  if(type==='overview'||type==='reports') type='lessons';
+  modalType = type; editing = null;
+  buildForm(type, {});
+  $('modalTitle').textContent = FORM_DEFS[type].title;
+  $('overlay').classList.add('open');
+}
+function openEdit(type, id){
+  const item = state[type].find(x=>x.id===id); if(!item) return;
+  modalType = type; editing = item;
+  buildForm(type, item);
+  $('modalTitle').textContent = '✏️ تعديل: ' + (item.title||'');
+  $('overlay').classList.add('open');
+}
+function buildForm(type, data){
+  const def = FORM_DEFS[type];
+  $('formFields').innerHTML = def.fields.map(f=>{
+    const v = data[f.k] ?? '';
+    let input='';
+    if(f.type==='select') input = `<select name="${f.k}">${f.opts.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
+    else if(f.type==='textarea') input = `<textarea name="${f.k}" rows="2">${esc(v)}</textarea>`;
+    else input = `<input name="${f.k}" type="${f.type}" value="${esc(v)}" ${f.req?'required':''} ${f.type==='number'?'step="0.01" min="0"':''} ${f.placeholder?`placeholder="${f.placeholder}"`:''}>`;
+    return `<div class="field ${f.full?'full':''}"><label>${f.label}</label>${input}</div>`;
+  }).join('');
+}
+function closeModal(){ $('overlay').classList.remove('open'); editing=null; }
+$('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+
+async function saveModal(e){
+  e.preventDefault();
+  const btn = $('saveBtn'); btn.disabled=true; btn.textContent='⏳ جاري الحفظ...';
+  const fd = new FormData($('modalForm'));
+  const row = {};
+  FORM_DEFS[modalType].fields.forEach(f=>{
+    let v = fd.get(f.k);
+    if(f.type==='number') v = v==='' ? null : Number(v);
+    row[f.k] = (v==='' ? null : v);
+  });
+  if(modalType==='finances' && (row.paid > row.amount || (row.kind==='مصروف' && row.paid!==0))){ toast('المقبوض لا يزيد عن الإجمالي وللمصروف أدخل صفر'); btn.disabled=false; btn.textContent='💾 حفظ'; return; }
+  if(modalType==='finances') row.currency=row.currency.trim().toUpperCase();
+  if(editing) row.id = editing.id;
+  else if(!online) row.id = 'local-'+Date.now();
+  try{
+    await dbUpsert(modalType, row);
+    if(editing){
+      const idx = state[modalType].findIndex(x=>x.id===editing.id);
+      if(idx>=0) state[modalType][idx] = {...state[modalType][idx], ...row};
+    } else {
+      state[modalType].push(row);
+    }
+    if(!online) saveLocal();
+    closeModal(); renderAll(); toast('تم الحفظ بنجاح ✅');
+  }catch(err){
+    console.error(err); toast('حدث خطأ: ' + (err.message||err));
+  }
+  btn.disabled=false; btn.textContent='💾 حفظ';
+}
+
+function renderFinances(){
+ const rows=(state.finances||[]).filter(x=>!$('financeMode').value||x.mode===$('financeMode').value);
+ const sums={}; for(const x of rows){const k=x.currency||'—';const v=sums[k]||={fees:0,paid:0,expenses:0};if(x.kind==='رسوم طالب'){v.fees+=Number(x.amount);v.paid+=Number(x.paid)}else v.expenses+=Number(x.amount)}
+ const num=n=>Number(n).toLocaleString('ar',{maximumFractionDigits:2});
+ $('financeSummary').innerHTML=Object.entries(sums).map(([c,v])=>`<div class="panel" style="margin-top:12px"><b>${esc(c)}</b> • الرسوم ${num(v.fees)} • المقبوض ${num(v.paid)} • المتبقي ${num(v.fees-v.paid)} • المصروفات ${num(v.expenses)} • صافي المقبوض ${num(v.paid-v.expenses)}</div>`).join('');
+ $('financeList').innerHTML=rows.length?rows.map(x=>`<div class="panel" style="margin-top:10px"><b>${esc(x.title)}</b> — ${esc(x.kind)} / ${esc(x.mode)}<br>${esc(x.student||'')} ${esc(x.entry_date)}<br>الإجمالي: ${num(x.amount)} ${esc(x.currency)} ${x.kind==='رسوم طالب'?` • المقبوض: ${num(x.paid)} • المتبقي: ${num(x.amount-x.paid)}`:''}<br>${esc(x.notes||'')}<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="openEdit('finances','${esc(x.id)}')">✏️ تعديل</button> <button class="btn btn-ghost btn-sm" onclick="delItem('finances','${esc(x.id)}')">🗑 حذف</button></div></div>`).join(''):'<p style="padding:20px">لا توجد سجلات بعد.</p>';
+}
+function exportFinance(){downloadCSV('finances.csv',['الوصف','النوع','طريقة الدرس','الطالب','التاريخ','الإجمالي','المقبوض','المتبقي','العملة','ملاحظات'],(state.finances||[]).map(x=>[x.title,x.kind,x.mode,x.student,x.entry_date,x.amount,x.paid,x.kind==='رسوم طالب'?x.amount-x.paid:0,x.currency,x.notes]));}
+
+// Manual calendar export and mail draft (no automatic sync or scheduling).
+function exportCalendar(){
+ const escapeIcs=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
+ const events=[];
+ for(const [items,key] of [[state.lessons,'lesson_date'],[state.appointments,'appointment_date']]) for(const x of items){
+   if(!x[key] || x.status==='ملغي') continue;
+   const date=x[key].replace(/-/g,'');
+   // All-day events avoid silently inventing a timezone or duration.
+   const end=new Date(x[key]+'T12:00:00'); end.setDate(end.getDate()+1);
+   const endDate=[end.getFullYear(),String(end.getMonth()+1).padStart(2,'0'),String(end.getDate()).padStart(2,'0')].join('');
+   events.push(['BEGIN:VEVENT','UID:'+escapeIcs(String(x.id||crypto.randomUUID())+'-'+key+'@work-tracker'),'DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,''),'DTSTART;VALUE=DATE:'+date,'DTEND;VALUE=DATE:'+endDate,'SUMMARY:'+escapeIcs(x.title),'DESCRIPTION:'+escapeIcs([x.start_time?'الوقت: '+x.start_time:'',x.end_time?'النهاية: '+x.end_time:'',x.notes||''].filter(Boolean).join('\n')),'LOCATION:'+escapeIcs(x.location||''),'END:VEVENT'].join('\r\n'));
+ }
+ const blob=new Blob([['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Work Tracker//AR','CALSCALE:GREGORIAN',...events,'END:VCALENDAR'].join('\r\n')+'\r\n'],{type:'text/calendar;charset=utf-8'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='work-tracker.ics';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function emailReport(){
+ const a=computeAlerts(), done=state.tasks.filter(t=>t.status==='تم').length;
+ const body=['تقرير متابعة الشغل','التاريخ: '+todayStr(),'إجمالي الدروس: '+state.lessons.length,'المهام المكتملة: '+done+' من '+state.tasks.length,'المهام المتأخرة: '+a.overdue.length,'المواعيد: '+state.appointments.length,'الأهداف: '+state.goals.length].join('\n');
+ location.href='mailto:'+encodeURIComponent(currentUser?.email||'')+'?subject='+encodeURIComponent('تقرير متابعة الشغل')+'&body='+encodeURIComponent(body);
+}
+
+// UI language switch; original database values are never changed.
+const uiTranslations = {
+'نظرة عامة':'Overview','الدروس':'Lessons','المواعيد':'Appointments','المهام المطلوبة':'Tasks','الأهداف':'Goals','التقارير':'Reports','مصاريف ورسوم الدروس':'Lesson finances','متابعة الشغل':'Work tracker','دروس • مواعيد • أهداف • مهام':'Lessons • appointments • goals • tasks',
+'الرئيسية':'Home','المهام':'Tasks','المالية':'Finances','📖 الدروس':'📖 Lessons','📅 المواعيد':'📅 Appointments','✅ المهام المطلوبة منك':'✅ Your tasks','🎯 الأهداف ومتابعة التقدم':'🎯 Goals and progress','📊 التقرير الأسبوعي':'📊 Weekly report','💰 مصاريف ورسوم الدروس':'💰 Lesson finances',
+'📊 التقارير والتصدير':'📊 Reports and export','👋 أهلاً بيك، دي لوحة متابعة شغلك':'👋 Welcome to your dashboard','＋ إضافة جديد':'＋ Add new','＋ إضافة سجل':'＋ Add record','＋ درس جديد':'＋ New lesson','＋ موعد جديد':'＋ New appointment','＋ مهمة جديدة':'＋ New task','＋ هدف جديد':'＋ New goal',
+'كل الحالات':'All statuses','كل الأولويات':'All priorities','مخطط':'Planned','تم':'Done','ملغي':'Cancelled','لم يبدأ':'Not started','قيد التنفيذ':'In progress','نشط':'Active','مكتمل':'Completed','متوقف':'Paused','عالي':'High','متوسط':'Medium','منخفض':'Low',
+'الدرس':'Lesson','المادة':'Subject','التاريخ':'Date','الوقت':'Time','الحالة':'Status','إجراءات':'Actions','أونلاين':'Online','حضوري':'In person','رسوم طالب':'Student fee','مصروف':'Expense','الكل: أونلاين وحضوري':'All: online and in person',
+'عنوان الدرس':'Lesson title','عنوان الموعد':'Appointment title','عنوان الهدف':'Goal title','المهمة المطلوبة':'Task','عنوان الدرس أو وصف المصروف':'Lesson or expense description','الدرس أو وصف المصروف':'Lesson or expense description','نوع السجل':'Record type','نوع الدرس':'Lesson format','اسم الطالب (للرسوم)':'Student name (for fees)','إجمالي الرسوم أو المصروف':'Fee or expense amount','المقبوض من الطالب (للمصروف أدخل صفر)':'Amount received (enter zero for expense)','العملة، مثلاً SAR أو EGP':'Currency, e.g. SAR or EGP','ملاحظات':'Notes','تفاصيل':'Details','الأولوية':'Priority','تاريخ الاستحقاق':'Due date','التصنيف':'Category','من الساعة':'Start time','إلى الساعة':'End time','الساعة':'Time','المكان':'Location','القيمة المستهدفة':'Target value','القيمة الحالية':'Current value','الوحدة':'Unit','الموعد النهائي':'Deadline','وصف الهدف':'Goal description',
+'💾 حفظ':'💾 Save','إلغاء':'Cancel','✏️ تعديل':'✏️ Edit','🗑 حذف':'🗑 Delete','📥 تصدير CSV':'📥 Export CSV','📅 تصدير ملف التقويم ICS':'📅 Export ICS calendar','✉️ إعداد تقرير للإرسال':'✉️ Prepare email report','🖨️ طباعة التقرير':'🖨️ Print report','🔔 تفعيل تنبيهات المتصفح':'🔔 Enable browser notifications','🚪 تسجيل الخروج':'🚪 Sign out','☰ القائمة':'☰ Menu','لا توجد سجلات بعد.':'No records yet.',
+'🔍 ابحث عن درس أو مادة...':'🔍 Search lessons or subjects...','🔍 ابحث عن موعد...':'🔍 Search appointments...','🔍 ابحث عن مهمة...':'🔍 Search tasks...','🔍 ابحث عن هدف...':'🔍 Search goals...','💰 سجل مالي جديد':'💰 New financial record','✅ مهمة جديدة':'✅ New task','📖 درس جديد':'📖 New lesson','📅 موعد جديد':'📅 New appointment','🎯 هدف جديد':'🎯 New goal'
+};
+Object.assign(uiTranslations,{
+'منصة متابعة الشغل':'Work Tracker','سجّل دخول عشان بياناتك (الدروس، المواعيد، المهام، الأهداف) تبقى محفوظة وخاصة بيك.':'Sign in to keep your lessons, appointments, tasks and goals private and saved.',
+'تسجيل الدخول':'Sign in','حساب جديد':'Create account','البريد الإلكتروني':'Email address','كلمة المرور':'Password','6 أحرف على الأقل':'At least 6 characters','🔑 دخول':'🔑 Sign in','✨ إنشاء حساب ودخول':'✨ Create account and sign in','👀 متابعة بدون تسجيل (وضع تجريبي)':'👀 Continue as guest (local demo)','🔒 بياناتك محفوظة في Supabase ومشروطة بحسابك.':'🔒 Your Supabase data is restricted to your account.','أول مرة؟ اعمل "حساب جديد" وهتدخل على طول.':'New here? Create an account to get started.',
+'بياناتك محفوظة أونلاين في مشروع':'Your data is saved online in project','متصل بـ Supabase':'Connected to Supabase','وضع محلي تجريبي':'Local demo mode','⚠️ وضع تجريبي محلي: تعذر الاتصال بـ Supabase، البيانات تُحفظ مؤقتاً في متصفحك فقط.':'⚠️ Local demo: Supabase is unavailable. Data is stored only in this browser.',
+'هذا الأسبوع':'This week','قادمة':'Upcoming','متبقية':'Remaining','متوسط التقدم':'Average progress','دروس مجدولة':'Scheduled lessons','مواعيد قادمة':'Upcoming appointments','مهام مطلوبة منك':'Tasks to do','تقدم الأهداف':'Goal progress',
+'🕐 جدول النهاردة وبكرة':'🕐 Today and tomorrow','كل الدروس ←':'All lessons →','⚡ مهام مستعجلة':'⚡ Urgent tasks','كل المهام ←':'All tasks →','🎯 تقدم أهدافك':'🎯 Goal progress','كل الأهداف ←':'All goals →',
+'✅ كل حاجة تمام!':'✅ All clear!','مفيش مهام متأخرة ولا حاجة مستعجلة النهاردة.':'No overdue tasks or urgent items today.','💬 ملخص اليوم واتساب':'💬 Daily WhatsApp summary','💬 ملخص إلى رقمي':'💬 Send summary to my number','📊 شوف التقارير':'📊 View reports','مفيش تنبيهات':'No alerts',
+'📚 الدروس حسب المادة':'📚 Lessons by subject','✅ المهام حسب الأولوية':'✅ Tasks by priority','🚨 التنبيهات الحالية':'🚨 Current alerts','📅 التقويم والبريد':'📅 Calendar and email','📥 تصدير البيانات':'📥 Export data',
+'تصدير الدروس والمواعيد إلى ملف تقويم للاستيراد اليدوي في Google Calendar؛ لا تتم المزامنة تلقائياً. التقرير يُفتح في تطبيق البريد للمراجعة والإرسال يدوياً، وليس إرسالاً أسبوعياً تلقائياً.':'Export lessons and appointments as a calendar file for manual import into Google Calendar. There is no automatic sync. The report opens in your email app for manual review and sending; weekly delivery is not automated.',
+'حمّل بياناتك بصيغة CSV تفتح في Excel وجوجل شيت، أو انسخ الملخص وابعتة واتساب.':'Download CSV files for Excel or Google Sheets, or share the summary via WhatsApp.',
+'📖 الدروس CSV':'📖 Lessons CSV','📅 المواعيد CSV':'📅 Appointments CSV','✅ المهام CSV':'✅ Tasks CSV','🎯 الأهداف CSV':'🎯 Goals CSV','💬 ملخص واتساب':'💬 WhatsApp summary',
+'سجّل رسوم كل طالب أو مصروف الدرس. الملخص حسب النوع والعملة، وصافي المقبوض = المقبوض − المصروفات.':'Record each student fee or lesson expense. Totals are grouped by format and currency. Net cash received = amount received − expenses.',
+'مفيش حاجة النهاردة وبكرة':'Nothing today or tomorrow','استمتع بيومك أو أضف درس / موعد جديد':'Enjoy your day or add a lesson or appointment','كل المهام خلصت!':'All tasks completed!','مفيش مهام معلقة دلوقتي':'No pending tasks right now','لسه مفيش أهداف':'No goals yet','أضف هدفك الأول وابدأ تتبع تقدمك':'Add your first goal to track progress','لا توجد أهداف':'No goals found','اضغط "هدف جديد" وابدأ':'Select New goal to get started','لا توجد دروس':'No lessons found','أضف أول درس ليك':'Add your first lesson','لا توجد مواعيد':'No appointments found','أضف موعدك القادم':'Add your next appointment','لا توجد مهام':'No tasks found','أضف مهمة مطلوبة منك':'Add a task','لا توجد دروس بعد':'No lessons yet',
+'لا دروس هذا الأسبوع':'No lessons this week','لا مواعيد قادمة':'No upcoming appointments','⚠️ عندك مهام عالية الأولوية':'⚠️ You have high-priority tasks','كل حاجة تحت السيطرة':'Everything is under control','موعد':'Appointment','متأخرة 🚨':'Overdue 🚨','إتمام':'Complete','نسخ':'Duplicate','واتساب':'WhatsApp','الوضع الليلي':'Dark mode','تفعيل تنبيهات المتصفح':'Enable browser notifications','إتمام / إعادة فتح':'Complete / reopen',
+'📖 درس جديد':'📖 New lesson','📅 موعد جديد':'📅 New appointment','✅ مهمة جديدة':'✅ New task','🎯 هدف جديد':'🎯 New goal','💰 سجل مالي جديد':'💰 New financial record','إضافة جديد':'Add new','املأ البيانات وسيتم الحفظ أونلاين في Supabase':'Complete the fields to save online in Supabase',
+'منصة متابعة الشغل':'Work tracker','🔔 التنبيهات اتفعّلت!':'🔔 Notifications enabled!','المتصفح لا يدعم التنبيهات':'Your browser does not support notifications','❌ تم رفض إذن التنبيهات':'❌ Notification permission was not granted','تم الحفظ بنجاح ✅':'Saved successfully ✅','تم الحذف 🗑':'Deleted 🗑','متأكد عايز تحذف العنصر ده؟':'Are you sure you want to delete this item?',
+});
+const uiOriginal = new WeakMap();
+let uiLanguage = localStorage.getItem('wt_language') || 'ar';
+function translateNode(root){
+ const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let n;
+ while(n=walker.nextNode()){
+  if(['SCRIPT','STYLE','TEXTAREA'].includes(n.parentElement?.tagName)) continue;
+  if(!uiOriginal.has(n)) uiOriginal.set(n,n.nodeValue);
+  const original=uiOriginal.get(n); const trimmed=original.trim();
+  if(n.parentElement?.tagName==='OPTION' && !n.parentElement.hasAttribute('value')) n.parentElement.value=trimmed;
+  if(uiTranslations[trimmed]) n.nodeValue=uiLanguage==='en'?original.replace(trimmed,uiTranslations[trimmed]):original;
+ }
+ if(root.querySelectorAll) root.querySelectorAll('option').forEach(o=>{if(!o.hasAttribute('value')) o.value=uiOriginal.get(o.firstChild)?.trim() || o.textContent.trim();});
+ if(root.querySelectorAll) root.querySelectorAll('[placeholder],[title]').forEach(el=>{for(const attr of ['placeholder','title']){if(!el.hasAttribute(attr)) continue;const key='data-original-'+attr;if(!el.hasAttribute(key))el.setAttribute(key,el.getAttribute(attr));const orig=el.getAttribute(key);el.setAttribute(attr,uiLanguage==='en'?(uiTranslations[orig]||orig):orig);}});
+}
+function applyLanguage(){ document.documentElement.lang=uiLanguage; document.documentElement.dir=uiLanguage==='en'?'ltr':'rtl'; $('languageButton').textContent=uiLanguage==='en'?'العربية':'English'; translateNode(document.body); }
+function toggleLanguage(){uiLanguage=uiLanguage==='en'?'ar':'en'; localStorage.setItem('wt_language',uiLanguage); applyLanguage();}
+const languageObserver=new MutationObserver(records=>{ if(uiLanguage!=='en') return; languageObserver.disconnect(); for(const r of records) for(const n of r.addedNodes) {if(n.nodeType===1) translateNode(n); else if(n.nodeType===3 && uiTranslations[n.nodeValue.trim()]) {uiOriginal.set(n,n.nodeValue); n.nodeValue=uiTranslations[n.nodeValue.trim()];}} languageObserver.observe(document.body,{childList:true,subtree:true}); });
+languageObserver.observe(document.body,{childList:true,subtree:true});
+applyLanguage();
+
+// ====== Init ======
+$('todayLine').textContent = new Intl.DateTimeFormat('ar-EG',{weekday:'long', day:'numeric', month:'long', year:'numeric'}).format(new Date()) + ' — ركّز على اللي جاي وخلّص مهامك 💪';
+$('datePill').textContent = new Intl.DateTimeFormat('ar-EG',{day:'numeric', month:'short', year:'numeric'}).format(new Date());
+initAuth();
+</script>
+</body>
+</html>
