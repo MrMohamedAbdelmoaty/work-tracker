@@ -255,6 +255,7 @@
       <button data-view="appointments"><span class="ico">📅</span> المواعيد <span class="count" id="navAppts">0</span></button>
       <button data-view="tasks"><span class="ico">✅</span> المهام المطلوبة <span class="count" id="navTasks">0</span></button>
       <button data-view="goals"><span class="ico">🎯</span> الأهداف <span class="count" id="navGoals">0</span></button>
+      <button data-view="settings"><span class="ico">⚙️</span> إعداد الاختيارات</button>
       <button data-view="finances"><span class="ico">💰</span> مصاريف ورسوم الدروس</button>
       <button data-view="reports"><span class="ico">📊</span> التقارير <span class="alert-dot" id="navAlertDot" style="display:none">!</span></button>
     </nav>
@@ -364,6 +365,7 @@
     </section>
 
     <section class="view" id="view-finances"><div class="panel"><div class="panel-head"><h3>💰 مصاريف ورسوم الدروس</h3><button class="btn btn-primary btn-sm" onclick="openAdd('finances')">＋ إضافة سجل</button></div><p style="color:var(--muted)">سجّل رسوم كل طالب أو مصروف الدرس. الملخص حسب النوع والعملة، وصافي المقبوض = المقبوض − المصروفات.</p><div class="toolbar"><select id="financeMode" onchange="renderFinances()"><option value="">الكل: أونلاين وحضوري</option><option>أونلاين</option><option>حضوري</option></select><button class="btn btn-ghost btn-sm" onclick="exportFinance()">📥 تصدير CSV</button></div><div id="financeSummary"></div><div id="financeList"></div></div></section>
+    <section class="view" id="view-settings"><div class="panel"><div class="panel-head"><h3>⚙️ إعداد الاختيارات مرة واحدة</h3></div><p>اكتب أسماء الطلاب والمبالغ المعتادة مرة واحدة، كل اختيار في سطر. بعد الحفظ هتختارها من القوائم. المبالغ بدون عملة؛ اختر العملة عند كل سجل.</p><form onsubmit="savePresets(event)"><div class="form-grid"><div class="field full"><label>أسماء الطلاب — اسم في كل سطر</label><textarea id="presetStudents" rows="5" placeholder="اكتب اسماً في كل سطر"></textarea></div><div class="field full"><label>المبالغ المعتادة — مبلغ في كل سطر</label><textarea id="presetAmounts" rows="4" placeholder="مثال: 100"></textarea></div></div><button class="btn btn-primary" type="submit">💾 حفظ الاختيارات</button></form><p style="margin-top:12px;color:var(--muted)">يمكنك تحديث القوائم لاحقاً. تغيير قائمة الطلاب لا يعدّل السجلات القديمة.</p></div></section>
     <!-- REPORTS -->
     <section class="view" id="view-reports">
       <div class="panel">
@@ -528,6 +530,7 @@ function enterGuest(){
 function enterApp(){
   $('authScreen').classList.add('hidden');
   $('appRoot').style.display='flex';
+  loadPresets();
   $('userEmail').textContent = guestMode ? '👀 وضع تجريبي (ضيف)' : (currentUser?.email || '—');
   loadAll();
 }
@@ -567,7 +570,7 @@ function go(view){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+view));
-  const titles={overview:'👋 أهلاً بيك، دي لوحة متابعة شغلك',lessons:'📖 الدروس',appointments:'📅 المواعيد',tasks:'✅ المهام المطلوبة منك',goals:'🎯 الأهداف',finances:'💰 مصاريف ورسوم الدروس',reports:'📊 التقارير والتصدير'};
+  const titles={overview:'👋 أهلاً بيك، دي لوحة متابعة شغلك',lessons:'📖 الدروس',appointments:'📅 المواعيد',tasks:'✅ المهام المطلوبة منك',goals:'🎯 الأهداف',finances:'💰 مصاريف ورسوم الدروس',settings:'⚙️ إعداد الاختيارات',reports:'📊 التقارير والتصدير'};
   $('pageTitle').textContent = titles[view];
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -764,8 +767,8 @@ function downloadCSV(filename, headers, rows){
   toast('📥 تم تحميل '+filename);
 }
 function exportCSV(type){
-  if(type==='lessons') downloadCSV('lessons.csv',['العنوان','المادة','التاريخ','من','إلى','الحالة','ملاحظات'], state.lessons.map(l=>[l.title,l.subject,l.lesson_date,l.start_time,l.end_time,l.status,l.notes]));
-  if(type==='appointments') downloadCSV('appointments.csv',['العنوان','التاريخ','الساعة','المكان','ملاحظات'], state.appointments.map(a=>[a.title,a.appointment_date,a.start_time,a.location,a.notes]));
+  if(type==='lessons') downloadCSV('lessons.csv',['العنوان','المادة','نوع الحصة','التاريخ','من','إلى','الحالة','ملاحظات'], state.lessons.map(l=>[l.title,l.subject,l.lesson_mode,l.lesson_date,l.start_time,l.end_time,l.status,l.notes]));
+  if(type==='appointments') downloadCSV('appointments.csv',['العنوان','التاريخ','الساعة','طريقة الحصة أو الموعد','المكان','ملاحظات'], state.appointments.map(a=>[a.title,a.appointment_date,a.start_time,a.lesson_mode,a.location,a.notes]));
   if(type==='tasks') downloadCSV('tasks.csv',['المهمة','التفاصيل','الأولوية','الاستحقاق','الحالة','التصنيف'], state.tasks.map(t=>[t.title,t.description,t.priority,t.due_date,t.status,t.category]));
   if(type==='goals') downloadCSV('goals.csv',['الهدف','الوصف','المستهدف','الحالي','الوحدة','الموعد النهائي','الحالة'], state.goals.map(g=>[g.title,g.description,g.target_value,g.current_value,g.unit,g.deadline,g.status]));
 }
@@ -877,7 +880,7 @@ function renderLessons(){
   $('lessonsEmpty').innerHTML='';
   body.innerHTML = list.map(l=>`<tr>
     <td><b>${esc(l.title)}</b>${l.notes?`<div style="color:var(--muted);font-size:12px;margin-top:3px">${esc(l.notes)}</div>`:''}</td>
-    <td>${esc(l.subject||'—')}</td>
+    <td>${esc(l.subject||'—')}${l.lesson_mode?' • '+esc(l.lesson_mode):''}</td>
     <td>${fmtDate(l.lesson_date)}</td>
     <td>${esc(l.start_time||'—')}${l.end_time? ' - '+esc(l.end_time):''}</td>
     <td>${statusBadge(l.status)}</td>
@@ -897,7 +900,7 @@ function renderAppointments(){
   box.innerHTML = list.map(a=>`<div class="item">
     <div class="thumb" style="background:#dbeafe">📅</div>
     <div class="body"><div class="title">${esc(a.title)}</div>
-    <div class="meta">${fmtDate(a.appointment_date)} ${a.start_time? '• '+esc(a.start_time):''} ${a.location? '• 📍 '+esc(a.location):''} ${a.notes? '• '+esc(a.notes):''}</div></div>
+    <div class="meta">${fmtDate(a.appointment_date)} ${a.start_time? '• '+esc(a.start_time):''} ${a.lesson_mode? '• '+esc(a.lesson_mode):''} ${a.location? '• 📍 '+esc(a.location):''} ${a.notes? '• '+esc(a.notes):''}</div></div>
     <div class="actions"><button class="btn btn-edit btn-sm" onclick="openEdit('appointments','${a.id}')">✏️ تعديل</button>
     <button class="btn btn-wa btn-sm" onclick="waAppt('${a.id}')">💬</button>
     <button class="btn btn-danger btn-sm" onclick="delItem('appointments','${a.id}')">🗑 حذف</button></div>
@@ -970,13 +973,14 @@ const FORM_DEFS = {
    {k:'entry_date',label:'التاريخ',type:'date',req:1},
    {k:'amount',label:'إجمالي الرسوم أو المصروف',type:'number',req:1},
    {k:'paid',label:'المقبوض من الطالب (للمصروف أدخل صفر)',type:'number',req:1},
-   {k:'currency',label:'العملة، مثلاً SAR أو EGP',type:'text',req:1},
+   {k:'currency',label:'العملة',type:'text',req:1},
    {k:'notes',label:'ملاحظات',type:'textarea',full:1}
   ]},
   lessons: { title:'📖 درس جديد', fields:[
     {k:'title',label:'عنوان الدرس',type:'text',req:1,full:1},
     {k:'subject',label:'المادة',type:'text'},
-    {k:'lesson_date',label:'التاريخ',type:'date'},
+    {k:'lesson_mode',label:'نوع الحصة',type:'select',opts:['أونلاين','حضوري']},
+    {k:'lesson_date',label:'التاريخ',type:'date',req:1},
     {k:'start_time',label:'من الساعة',type:'time'},
     {k:'end_time',label:'إلى الساعة',type:'time'},
     {k:'status',label:'الحالة',type:'select',opts:['مخطط','تم','ملغي']},
@@ -984,7 +988,8 @@ const FORM_DEFS = {
   ]},
   appointments: { title:'📅 موعد جديد', fields:[
     {k:'title',label:'عنوان الموعد',type:'text',req:1,full:1},
-    {k:'appointment_date',label:'التاريخ',type:'date'},
+    {k:'lesson_mode',label:'طريقة الحصة أو الموعد',type:'select',opts:['أونلاين','حضوري']},
+    {k:'appointment_date',label:'التاريخ',type:'date',req:1},
     {k:'start_time',label:'الساعة',type:'time'},
     {k:'location',label:'المكان',type:'text'},
     {k:'notes',label:'ملاحظات',type:'textarea',full:1},
@@ -1010,7 +1015,7 @@ const FORM_DEFS = {
 let modalType = 'lessons';
 
 function openAdd(type){
-  if(type==='overview'||type==='reports') type='lessons';
+  if(type==='overview'||type==='reports'||type==='settings') type='lessons';
   modalType = type; editing = null;
   buildForm(type, {});
   $('modalTitle').textContent = FORM_DEFS[type].title;
@@ -1023,16 +1028,45 @@ function openEdit(type, id){
   $('modalTitle').textContent = '✏️ تعديل: ' + (item.title||'');
   $('overlay').classList.add('open');
 }
+const subjectChoices=['كيمياء','فيزياء','أحياء','علوم','رياضيات','لغة عربية','لغة إنجليزية','لغة فرنسية','دراسات اجتماعية','تاريخ','جغرافيا','فلسفة','حاسب آلي','أخرى'];
+const choiceLists={
+ lessons:{title:['شرح درس','مراجعة','حل تدريبات','اختبار','متابعة طالب','حصة خاصة','حصة جماعية'],subject:subjectChoices,notes:['بدون ملاحظات','واجب مطلوب','مراجعة قبل الاختبار','حصة تعويضية']},
+ appointments:{title:['حصة خاصة','حصة جماعية','متابعة طالب','مراجعة','اجتماع','اختبار','موعد إداري'],location:['أونلاين - زووم','أونلاين - Google Meet','أونلاين - منصة أخرى','حضوري - المدرسة','حضوري - المركز','حضوري - المنزل'],notes:['بدون ملاحظات','تأكيد الموعد','إرسال رابط الاجتماع','موعد قابل للتغيير']},
+ tasks:{title:['تحضير درس','تصحيح واجبات','إعداد اختبار','متابعة طالب','تجهيز مواد تعليمية','التواصل مع ولي الأمر','مراجعة جدول الدروس','متابعة المدفوعات'],description:['بدون تفاصيل','عاجل','يحتاج متابعة','تم الإعداد'],category:['تحضير','تصحيح','إدارة','متابعة الطلاب','ماليات']},
+ goals:{title:['إنهاء المنهج','تحضير الدروس','زيادة عدد الطلاب','تحسين نتائج الطلاب','إنجاز المهام','زيادة الإيرادات'],description:['بدون وصف','هدف أسبوعي','هدف شهري','هدف الفصل الدراسي'],unit:['درس','طالب','حصة','%','مهمة','صفحة']},
+ finances:{title:['رسوم حصة','اشتراك شهري','رسوم مراجعة','إيجار مكان','اشتراك منصة','إنترنت','مواصلات','طباعة ومستلزمات','مصروف آخر'],currency:['SAR','EGP','AED','USD','KWD','QAR','BHD','OMR','EUR','GBP']}
+};
+const currencyNames={SAR:'ريال سعودي',EGP:'جنيه مصري',AED:'درهم إماراتي',USD:'دولار أمريكي',KWD:'دينار كويتي',QAR:'ريال قطري',BHD:'دينار بحريني',OMR:'ريال عماني',EUR:'يورو',GBP:'جنيه إسترليني'};
+let presetData={students:[],amounts:[]};
+async function loadPresets(){
+ presetData={students:[],amounts:[]};
+ try{ if(sb && currentUser && !guestMode){const {data,error}=await sb.from('tracker_presets').select('students,amounts').eq('user_id',currentUser.id).maybeSingle();if(error) throw error;if(data) presetData=data;}
+ else presetData=JSON.parse(localStorage.getItem('wt_presets_guest')||'{"students":[],"amounts":[]}');
+ }catch(e){console.error(e);toast('تعذر تحميل الاختيارات المحفوظة');}
+ $('presetStudents').value=(presetData.students||[]).join('\n'); $('presetAmounts').value=(presetData.amounts||[]).join('\n');
+}
+async function savePresets(e){e.preventDefault();
+ const students=[...new Set($('presetStudents').value.split(/\n/).map(x=>x.trim()).filter(Boolean))];
+ const raw=$('presetAmounts').value.split(/\n/).map(x=>x.trim()).filter(Boolean);
+ if(raw.some(x=>!/^\d+(\.\d{1,2})?$/.test(x))){toast('اكتب مبالغ صحيحة غير سالبة، مبلغ في كل سطر');return;}
+ const amounts=[...new Set(raw.map(x=>Number(x)))]; const data={students,amounts};
+ try{if(sb&&currentUser&&!guestMode){const {error}=await sb.from('tracker_presets').upsert({user_id:currentUser.id,...data});if(error)throw error;}else localStorage.setItem('wt_presets_guest',JSON.stringify(data));presetData=data;toast('تم حفظ الاختيارات ✅');}catch(err){toast('تعذر حفظ الاختيارات: '+err.message);}
+}
 function buildForm(type, data){
-  const def = FORM_DEFS[type];
-  $('formFields').innerHTML = def.fields.map(f=>{
-    const v = data[f.k] ?? '';
-    let input='';
-    if(f.type==='select') input = `<select name="${f.k}">${f.opts.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
-    else if(f.type==='textarea') input = `<textarea name="${f.k}" rows="2">${esc(v)}</textarea>`;
-    else input = `<input name="${f.k}" type="${f.type}" value="${esc(v)}" ${f.req?'required':''} ${f.type==='number'?'step="0.01" min="0"':''} ${f.placeholder?`placeholder="${f.placeholder}"`:''}>`;
-    return `<div class="field ${f.full?'full':''}"><label>${f.label}</label>${input}</div>`;
-  }).join('');
+ const def=FORM_DEFS[type];
+ $('formFields').innerHTML=def.fields.map(f=>{
+   const v=data[f.k] ?? (f.k==='entry_date'?todayStr():'');
+   let choices=choiceLists[type]?.[f.k] || (f.type==='select'?f.opts:null);
+   if(type==='finances'&&f.k==='student') choices=presetData.students||[];
+   if(type==='finances'&&['amount','paid'].includes(f.k)) choices=(f.k==='paid'?[0,...(presetData.amounts||[])]:presetData.amounts||[]).map(String);
+   if(type==='goals'&&['target_value','current_value'].includes(f.k)) choices=Array.from({length:101},(_,i)=>String(i));
+   if(type==='finances'&&f.k==='notes') choices=['بدون ملاحظات','مدفوع بالكامل','مدفوع جزئياً','بانتظار الدفع'];
+   let input;
+   if(choices){const options=[...new Set(choices.map(String))];if(v!==''&&!options.includes(String(v))) options.unshift(String(v));
+     input=`<select name="${f.k}" ${(f.req||f.type==='select')?'required':''}><option value="">${(f.req||f.type==='select')?'اختر من القائمة':'بدون اختيار'}</option>${options.map(o=>`<option value="${esc(o)}" ${String(v)===o?'selected':''}>${esc(f.k==='currency' && currencyNames[o] ? currencyNames[o]+' — '+o : o)}</option>`).join('')}</select>`;
+   }else input=`<input name="${f.k}" type="${f.type}" value="${esc(v)}" ${f.req?'required':''}>`;
+   return `<div class="field ${f.full?'full':''}"><label>${esc(f.label)}</label>${input}${type==='finances'&&['student','amount','paid'].includes(f.k)?'<small>لإضافة اختيارات: إعداد الاختيارات من القائمة</small>':''}</div>`;
+ }).join('');
 }
 function closeModal(){ $('overlay').classList.remove('open'); editing=null; }
 $('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
@@ -1151,5 +1185,5 @@ $('datePill').textContent = new Intl.DateTimeFormat('ar-EG',{day:'numeric', mont
 initAuth();
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5e94ad76ee04b31',t:'MTc5NTM2NDc0OQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5e94ad76ee04b31',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5e969185f6d764d',t:'MTc5NTM2NTk4OQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5e969185f6d764d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
