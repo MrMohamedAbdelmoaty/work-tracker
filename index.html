@@ -255,6 +255,7 @@
       <button data-view="appointments"><span class="ico">📅</span> المواعيد <span class="count" id="navAppts">0</span></button>
       <button data-view="tasks"><span class="ico">✅</span> المهام المطلوبة <span class="count" id="navTasks">0</span></button>
       <button data-view="goals"><span class="ico">🎯</span> الأهداف <span class="count" id="navGoals">0</span></button>
+      <button data-view="tutoring"><span class="ico">👩‍🎓</span> الطلاب والحصص</button>
       <button data-view="settings"><span class="ico">⚙️</span> إعداد الاختيارات</button>
       <button data-view="finances"><span class="ico">💰</span> مصاريف ورسوم الدروس</button>
       <button data-view="reports"><span class="ico">📊</span> التقارير <span class="alert-dot" id="navAlertDot" style="display:none">!</span></button>
@@ -366,6 +367,12 @@
 
     <section class="view" id="view-finances"><div class="panel"><div class="panel-head"><h3>💰 مصاريف ورسوم الدروس</h3><button class="btn btn-primary btn-sm" onclick="openAdd('finances')">＋ إضافة سجل</button></div><p style="color:var(--muted)">سجّل رسوم كل طالب أو مصروف الدرس. الملخص حسب النوع والعملة، وصافي المقبوض = المقبوض − المصروفات.</p><div class="toolbar"><select id="financeMode" onchange="renderFinances()"><option value="">الكل: أونلاين وحضوري</option><option>أونلاين</option><option>حضوري</option></select><button class="btn btn-ghost btn-sm" onclick="exportFinance()">📥 تصدير CSV</button></div><div id="financeSummary"></div><div id="financeList"></div></div></section>
     <section class="view" id="view-settings"><div class="panel"><div class="panel-head"><h3>⚙️ إعداد الاختيارات مرة واحدة</h3></div><p>اكتب أسماء الطلاب والمبالغ المعتادة مرة واحدة، كل اختيار في سطر. بعد الحفظ هتختارها من القوائم. المبالغ بدون عملة؛ اختر العملة عند كل سجل.</p><form onsubmit="savePresets(event)"><div class="form-grid"><div class="field full"><label>أسماء الطلاب — اسم في كل سطر</label><textarea id="presetStudents" rows="5" placeholder="اكتب اسماً في كل سطر"></textarea></div><div class="field full"><label>المبالغ المعتادة — مبلغ في كل سطر</label><textarea id="presetAmounts" rows="4" placeholder="مثال: 100"></textarea></div></div><button class="btn btn-primary" type="submit">💾 حفظ الاختيارات</button></form><p style="margin-top:12px;color:var(--muted)">يمكنك تحديث القوائم لاحقاً. تغيير قائمة الطلاب لا يعدّل السجلات القديمة.</p></div></section>
+    <section class="view" id="view-tutoring">
+      <div class="panel"><div class="panel-head"><h3>👩‍🎓 الطلاب والحصص الخاصة</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="tutorForm('students')">＋ طالب</button><button class="btn btn-ghost btn-sm" onclick="tutorForm('sessions')">＋ حصة</button><button class="btn btn-ghost btn-sm" onclick="tutorForm('fees')">＋ رسوم</button><button class="btn btn-ghost btn-sm" onclick="loadTutor()">↻ تحديث</button></div></div><p style="color:var(--muted)">للخصوصية، إدارة الطلاب متاحة بعد تسجيل الدخول والاتصال فقط. التقارير تُرسل يدويًا بعد مراجعتها؛ لا يوجد إرسال تلقائي.</p><p id="tutorStatus"></p></div>
+      <div class="grid2"><div class="panel"><div class="panel-head"><h3>الطلاب وأولياء الأمور</h3></div><div id="tutorStudents"></div></div><div class="panel"><div class="panel-head"><h3>الحصص والحضور والواجب</h3></div><div id="tutorSessions"></div></div></div>
+      <div class="panel"><div class="panel-head"><h3>الرسوم والمدفوعات</h3></div><p style="color:var(--muted)">سجلات الطلاب مستقلة عن قسم المصروفات القديم، ولا تُنقل منه تلقائيًا.</p><div id="tutorFees"></div></div>
+      <div class="panel"><h3>📋 تقرير الطالب الأسبوعي</h3><p style="color:var(--muted)">من تاريخ البداية ولمدة ٧ أيام؛ راجع التقرير وتأكد من رقم ولي الأمر قبل المشاركة. لا يتضمن التقرير البيانات المالية.</p><div class="toolbar"><select id="tutorReportStudent" onchange="clearTutorReport()"></select><input id="tutorReportStart" type="date" onchange="clearTutorReport()"><button class="btn btn-ghost" onclick="makeTutorReport()">عرض التقرير</button></div><pre id="tutorReport" style="white-space:pre-wrap;line-height:1.8;font-family:inherit"></pre><button id="tutorShare" class="btn btn-wa" style="display:none" onclick="shareTutorReport()">💬 مراجعة وإرسال يدوي في واتساب</button></div>
+    </section>
     <!-- REPORTS -->
     <section class="view" id="view-reports">
       <div class="panel">
@@ -413,6 +420,7 @@
     <button data-view="appointments" onclick="go('appointments')"><span class="ico">📅</span>المواعيد</button>
     <button data-view="tasks" onclick="go('tasks')"><span class="ico">✅</span>المهام</button>
     <button data-view="goals" onclick="go('goals')"><span class="ico">🎯</span>الأهداف</button>
+    <button data-view="tutoring" onclick="go('tutoring')"><span class="ico">👩‍🎓</span>الطلاب</button>
     <button data-view="finances" onclick="go('finances')"><span class="ico">💰</span>المالية</button>
     <button data-view="reports" onclick="go('reports')"><span class="ico">📊</span>التقارير<span class="bdot" id="bDot" style="display:none">!</span></button>
   </div>
@@ -528,14 +536,17 @@ function enterGuest(){
   enterApp();
 }
 function enterApp(){
+  tutorData={students:[],sessions:[],fees:[]}; tutorReady=false;
   $('authScreen').classList.add('hidden');
   $('appRoot').style.display='flex';
   loadPresets();
   $('userEmail').textContent = guestMode ? '👀 وضع تجريبي (ضيف)' : (currentUser?.email || '—');
   loadAll();
+  loadTutor();
 }
 async function logout(){
   if(!guestMode && sb){ try{ await sb.auth.signOut(); }catch(e){} }
+  tutorData={students:[],sessions:[],fees:[]}; tutorReady=false; clearTutorReport();
   guestMode=false; currentUser=null;
   try{ sessionStorage.removeItem('wt_guest'); }catch(e){}
   $('appRoot').style.display='none';
@@ -570,7 +581,7 @@ function go(view){
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+view));
-  const titles={overview:'👋 أهلاً بيك، دي لوحة متابعة شغلك',lessons:'📖 الدروس',appointments:'📅 المواعيد',tasks:'✅ المهام المطلوبة منك',goals:'🎯 الأهداف',finances:'💰 مصاريف ورسوم الدروس',settings:'⚙️ إعداد الاختيارات',reports:'📊 التقارير والتصدير'};
+  const titles={overview:'👋 أهلاً بيك، دي لوحة متابعة شغلك',lessons:'📖 الدروس',appointments:'📅 المواعيد',tasks:'✅ المهام المطلوبة منك',goals:'🎯 الأهداف',finances:'💰 مصاريف ورسوم الدروس',settings:'⚙️ إعداد الاختيارات',tutoring:'👩‍🎓 الطلاب والحصص الخاصة',reports:'📊 التقارير والتصدير'};
   $('pageTitle').textContent = titles[view];
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -1015,6 +1026,7 @@ const FORM_DEFS = {
 let modalType = 'lessons';
 
 function openAdd(type){
+  if(type==='tutoring'){tutorForm('students');return;}
   if(type==='overview'||type==='reports'||type==='settings') type='lessons';
   modalType = type; editing = null;
   buildForm(type, {});
@@ -1110,6 +1122,81 @@ function renderFinances(){
 }
 function exportFinance(){downloadCSV('finances.csv',['الوصف','النوع','طريقة الدرس','الطالب','التاريخ','الإجمالي','المقبوض','المتبقي','العملة','ملاحظات'],(state.finances||[]).map(x=>[x.title,x.kind,x.mode,x.student,x.entry_date,x.amount,x.paid,x.kind==='رسوم طالب'?x.amount-x.paid:0,x.currency,x.notes]));}
 
+// Private tutoring management: online-only; errors never fall back to local student data.
+let tutorData={students:[],sessions:[],fees:[]},tutorReady=false,tutorEditing=null,tutorType=null,tutorReportData=null;
+const tutorTables={students:'tutor_students',sessions:'tutor_sessions',fees:'tutor_fees'};
+const tutorSubjects=['كيمياء','فيزياء','أحياء','علوم','رياضيات','لغة عربية','لغة إنجليزية','لغة فرنسية','دراسات اجتماعية','تاريخ','جغرافيا','حاسب آلي','أخرى'];
+const tutorFormats=['أونلاين','حضوري'], tutorCurrencies=['SAR','EGP','AED','USD','KWD','QAR','BHD','OMR','EUR','GBP'];
+async function loadTutor(){
+ tutorReady=false; tutorData={students:[],sessions:[],fees:[]}; clearTutorReport();
+ if(!sb||!currentUser||guestMode){$('tutorStatus').textContent='سجّل الدخول لاستخدام إدارة الطلاب. البيانات غير متاحة في وضع الضيف.';renderTutor();return;}
+ $('tutorStatus').textContent='جارٍ تحميل بيانات الطلاب…'; const uid=currentUser.id;
+ try{const results=await Promise.all(Object.values(tutorTables).map(t=>sb.from(t).select('*').eq('user_id',uid).order('created_at',{ascending:false})));
+  if(results.some(r=>r.error)) throw results.find(r=>r.error).error;
+  if(currentUser?.id!==uid)return;
+  tutorData={students:results[0].data||[],sessions:results[1].data||[],fees:results[2].data||[]};tutorReady=true;$('tutorStatus').textContent='متصل • بيانات حسابك فقط';renderTutor();
+ }catch(e){$('tutorStatus').textContent='تعذّر تحميل بيانات الطلاب. تحقق من الاتصال ثم اضغط تحديث.';renderTutor();console.error(e);}
+}
+function clearTutorReport(){tutorReportData=null;if($('tutorReport'))$('tutorReport').textContent='';if($('tutorShare'))$('tutorShare').style.display='none';}
+function renderTutor(){
+ const name=id=>tutorData.students.find(x=>x.id===id)?.name||'طالب غير متاح';
+ $('tutorStudents').innerHTML=tutorData.students.map(x=>`<div class="item"><div class="body"><b>${esc(x.name)}</b><div class="meta">${esc(x.grade||'')} • ولي الأمر: ${esc(x.guardian_name||'—')} • ${esc(x.guardian_phone||'—')}</div></div><div class="actions"><button class="btn btn-edit btn-sm" onclick="tutorForm('students','${esc(x.id)}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deleteTutor('students','${esc(x.id)}')">حذف</button></div></div>`).join('')||'<p>لا يوجد طلاب بعد.</p>';
+ $('tutorSessions').innerHTML=tutorData.sessions.slice().sort((a,b)=>b.session_date.localeCompare(a.session_date)).map(x=>`<div class="item"><div class="body"><b>${esc(name(x.student_id))} • ${esc(x.subject)}</b><div class="meta">${esc(x.session_date)} ${esc(x.start_time||'')} • ${esc(x.mode)} • ${esc(x.attendance)} • الواجب: ${esc(x.homework)} • التقدم: ${esc(x.progress)}</div></div><div class="actions"><button class="btn btn-edit btn-sm" onclick="tutorForm('sessions','${esc(x.id)}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deleteTutor('sessions','${esc(x.id)}')">حذف</button></div></div>`).join('')||'<p>لا توجد حصص بعد.</p>';
+ $('tutorFees').innerHTML=tutorData.fees.map(x=>`<div class="item"><div class="body"><b>${esc(name(x.student_id))} • ${esc(x.fee_date)}</b><div class="meta">الإجمالي ${esc(x.amount)} ${esc(x.currency)} • المدفوع ${esc(x.paid)} • المتبقي ${esc((Number(x.amount)-Number(x.paid)).toFixed(2))}</div></div><div class="actions"><button class="btn btn-edit btn-sm" onclick="tutorForm('fees','${esc(x.id)}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deleteTutor('fees','${esc(x.id)}')">حذف</button></div></div>`).join('')||'<p>لا توجد رسوم بعد.</p>';
+ const select=$('tutorReportStudent'),old=select.value;select.innerHTML='<option value="">اختر الطالب</option>'+tutorData.students.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');if(tutorData.students.some(x=>x.id===old)) select.value=old;
+ if(!$('tutorReportStart').value){const d=new Date();d.setDate(d.getDate()-6);$('tutorReportStart').value=localTutorDate(d);}
+}
+function localTutorDate(d){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');}
+function tutorOptions(name,values,value,required=true){return `<select name="${name}" ${required?'required':''}><option value="">اختر</option>${values.map(v=>{const val=Array.isArray(v)?v[0]:v,label=Array.isArray(v)?v[1]:v;return `<option value="${esc(val)}" ${String(value??'')===String(val)?'selected':''}>${esc(label)}</option>`}).join('')}</select>`;}
+function tutorField(label,input){return `<div class="field"><label>${esc(label)}</label>${input}</div>`;}
+function tutorForm(type,id){
+ if(!tutorReady){toast('سجّل الدخول وتأكد من الاتصال ثم اضغط تحديث');return;}
+ if(type!=='students'&&!tutorData.students.length){toast('أضف طالبًا أولاً');return;}
+ const row=id?tutorData[type].find(x=>x.id===id):{};if(!row)return;
+ tutorType=type;tutorEditing=id||null;const studentChoices=tutorData.students.map(x=>[x.id,x.name]);let html='';
+ if(type==='students'){
+ html+=tutorField('اسم الطالب',`<input name="name" required maxlength="120" value="${esc(row.name||'')}">`);
+ html+=tutorField('المرحلة الدراسية',tutorOptions('grade',['ابتدائي','متوسط','ثانوي','جامعي','أخرى'],row.grade,false));
+ html+=tutorField('اسم ولي الأمر',`<input name="guardian_name" maxlength="120" value="${esc(row.guardian_name||'')}">`);
+ html+=tutorField('رقم واتساب ولي الأمر بكود الدولة',`<input name="guardian_phone" type="tel" dir="ltr" placeholder="+9665XXXXXXXX" value="${esc(row.guardian_phone||'')}">`);
+ }else{
+ html+=tutorField('الطالب',tutorOptions('student_id',studentChoices,row.student_id));
+ if(type==='sessions'){
+ html+=tutorField('المادة',tutorOptions('subject',tutorSubjects,row.subject));html+=tutorField('نوع الحصة',tutorOptions('mode',tutorFormats,row.mode));
+ html+=tutorField('التاريخ',`<input name="session_date" type="date" required value="${esc(row.session_date||localTutorDate(new Date()))}">`);
+ html+=tutorField('الوقت',`<input name="start_time" type="time" value="${esc((row.start_time||'').slice(0,5))}">`);
+ html+=tutorField('الحضور',tutorOptions('attendance',['مجدولة','حضر','غائب','ملغاة'],row.attendance||'مجدولة'));
+ html+=tutorField('الواجب',tutorOptions('homework',['لم يحدد','لم يُسلّم','تم','يحتاج متابعة'],row.homework||'لم يحدد'));
+ html+=tutorField('التقدم',tutorOptions('progress',['لم يقيّم','ممتاز','جيد','يحتاج متابعة'],row.progress||'لم يقيّم'));
+ }else{
+ html+=tutorField('التاريخ',`<input name="fee_date" type="date" required value="${esc(row.fee_date||localTutorDate(new Date()))}">`);
+ const amts=[...new Set([...(presetData.amounts||[]).map(String),...(row.amount!=null?[String(row.amount)]:[])])];
+ const paid=[...new Set(['0',...(presetData.amounts||[]).map(String),...(row.paid!=null?[String(row.paid)]:[])])];
+ html+=tutorField('الإجمالي — أضف المبالغ من إعداد الاختيارات',tutorOptions('amount',amts,row.amount));html+=tutorField('المدفوع',tutorOptions('paid',paid,row.paid));
+ html+=tutorField('العملة',tutorOptions('currency',tutorCurrencies.map(c=>[c,(currencyNames[c]||c)+' — '+c]),row.currency));
+ }}
+ $('formFields').innerHTML=html;$('modalTitle').textContent= (id?'تعديل ':'إضافة ')+({students:'طالب',sessions:'حصة',fees:'رسوم'})[type];
+ $('modalDesc').textContent='الحفظ في حسابك على Supabase';$('modalForm').onsubmit=saveTutor;$('overlay').classList.add('open');
+}
+async function saveTutor(e){e.preventDefault();if(!tutorReady||!currentUser){toast('الاتصال غير متاح');return;}const fd=new FormData(e.target),row={user_id:currentUser.id}; for(const [k,v] of fd.entries())row[k]=String(v).trim()||null;
+ if(tutorType==='students'){if(!row.name){toast('اسم الطالب مطلوب');return;}if(row.guardian_phone){let raw=row.guardian_phone.replace(/[\s()-]/g,'');if(raw.startsWith('00'))raw='+'+raw.slice(2);if(!/^\+[1-9]\d{7,14}$/.test(raw)){toast('أدخل الرقم بكود الدولة مثل +966...');return;}row.guardian_phone=raw;}}
+ if(tutorType==='fees'){row.amount=Number(row.amount);row.paid=Number(row.paid);if(!Number.isFinite(row.amount)||!Number.isFinite(row.paid)||row.amount<0||row.paid<0||row.paid>row.amount){toast('المدفوع يجب أن يكون بين صفر والإجمالي');return;}}
+ if(tutorEditing)row.id=tutorEditing;const btn=$('saveBtn');btn.disabled=true;
+ try{const {error}=await sb.from(tutorTables[tutorType]).upsert(row);if(error)throw error;closeModal();await loadTutor();toast('تم الحفظ ✅');}catch(err){toast('تعذر الحفظ: '+err.message);}finally{btn.disabled=false;}
+}
+async function deleteTutor(type,id){if(!tutorReady||!tutorTables[type])return;if(!confirm(type==='students'?'حذف الطالب؟ لن يمكن الحذف إذا كانت له حصص أو رسوم مرتبطة.':'هل تريد حذف السجل؟'))return;
+ try{const {error}=await sb.from(tutorTables[type]).delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;await loadTutor();toast('تم الحذف');}catch(err){toast(type==='students'?'تعذّر الحذف؛ احذف الحصص والرسوم المرتبطة أولاً.':'تعذّر الحذف: '+err.message);}}
+function makeTutorReport(){clearTutorReport();const id=$('tutorReportStudent').value,start=$('tutorReportStart').value,student=tutorData.students.find(x=>x.id===id);if(!tutorReady||!student||!start){toast('اختر الطالب وتاريخ البداية');return;}
+ const d=new Date(start+'T12:00:00');d.setDate(d.getDate()+6);const end=localTutorDate(d);const sessions=tutorData.sessions.filter(x=>x.student_id===id&&x.session_date>=start&&x.session_date<=end).sort((a,b)=>a.session_date.localeCompare(b.session_date));
+ const lines=[`تقرير الطالب: ${student.name}`,`الفترة: ${start} إلى ${end}`,`عدد الحصص: ${sessions.length}`,`الحضور: ${sessions.filter(x=>x.attendance==='حضر').length} • الغياب: ${sessions.filter(x=>x.attendance==='غائب').length}`,''];
+ if(!sessions.length)lines.push('لا توجد حصص مسجلة في الفترة.'); else sessions.forEach(x=>lines.push(`${x.session_date} • ${x.subject} • ${x.mode} • ${x.attendance} • الواجب: ${x.homework} • التقدم: ${x.progress}`));
+ tutorReportData={id,text:lines.join('\n'),phone:student.guardian_phone||''};$('tutorReport').textContent=tutorReportData.text;$('tutorShare').style.display='inline-flex';}
+function shareTutorReport(){if(!tutorReportData)return;const st=tutorData.students.find(x=>x.id===tutorReportData.id);if(!st||!tutorReportData.phone){toast('أضف رقم ولي الأمر أولاً');return;}if(!confirm(`راجع التقرير ورقم ولي أمر ${st.name}: ${tutorReportData.phone}. فتح واتساب للإرسال اليدوي؟`))return;window.open('https://wa.me/'+tutorReportData.phone.replace(/\D/g,'')+'?text='+encodeURIComponent(tutorReportData.text),'_blank','noopener');}
+// Switching between the tutor editor and the main dashboard form must restore its handler.
+const openAddOriginal=openAdd,openEditOriginal=openEdit;
+openAdd=function(type){if(type!=='tutoring'){$('modalForm').onsubmit=saveModal;$('modalDesc').textContent='املأ البيانات وسيتم الحفظ أونلاين في Supabase';}return openAddOriginal(type);};
+openEdit=function(type,id){$('modalForm').onsubmit=saveModal;$('modalDesc').textContent='املأ البيانات وسيتم الحفظ أونلاين في Supabase';return openEditOriginal(type,id);};
+
 // Manual calendar export and mail draft (no automatic sync or scheduling).
 function exportCalendar(){
  const escapeIcs=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
@@ -1184,6 +1271,6 @@ $('todayLine').textContent = new Intl.DateTimeFormat('ar-EG',{weekday:'long', da
 $('datePill').textContent = new Intl.DateTimeFormat('ar-EG',{day:'numeric', month:'short', year:'numeric'}).format(new Date());
 initAuth();
 </script>
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5e969185f6d764d',t:'MTc5NTM2NTk4OQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5e969185f6d764d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5e97d2ee83a185c',t:'MTc5NTM2NjgxMQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5e97d2ee83a185c',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
+</body>
 </html>
