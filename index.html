@@ -230,11 +230,13 @@
       <button id="tabLogin" class="active" onclick="switchAuth('login')">تسجيل الدخول</button>
       <button id="tabSignup" onclick="switchAuth('signup')">حساب جديد</button>
     </div>
-    <form onsubmit="handleAuth(event)">
+    <form id="loginForm" onsubmit="handleAuth(event)">
       <div class="auth-field"><label>البريد الإلكتروني</label><input type="email" id="authEmail" required placeholder="you@example.com" dir="ltr" style="text-align:left"></div>
       <div class="auth-field"><label>كلمة المرور</label><input type="password" id="authPass" required minlength="6" placeholder="6 أحرف على الأقل" dir="ltr" style="text-align:left"></div>
       <button class="auth-btn" id="authBtn" type="submit">🔑 دخول</button>
     </form>
+    <button class="auth-guest" id="forgotBtn" onclick="requestPasswordReset()">نسيت كلمة المرور؟</button>
+    <form id="recoveryForm" style="display:none" onsubmit="setNewPassword(event)"><div class="auth-field"><label>كلمة المرور الجديدة</label><input id="newPassword" type="password" minlength="6" autocomplete="new-password" required></div><button class="auth-btn" type="submit">حفظ كلمة المرور الجديدة</button></form>
     <button class="auth-guest" onclick="enterGuest()">👀 متابعة بدون تسجيل (وضع تجريبي)</button>
     <p class="auth-note">🔒 بياناتك محفوظة في Supabase ومشروطة بحسابك.<br>أول مرة؟ اعمل "حساب جديد" وهتدخل على طول.</p>
   </div>
@@ -479,6 +481,18 @@ function switchAuth(m){
 function authError(msg){ const e=$('authErr'); e.textContent=msg; e.classList.add('show'); $('authOk').classList.remove('show'); }
 function authOkMsg(msg){ const e=$('authOk'); e.textContent=msg; e.classList.add('show'); $('authErr').classList.remove('show'); }
 
+async function requestPasswordReset(){
+ const email=$('authEmail').value.trim(); if(!email){authError('اكتب بريدك الإلكتروني أولاً');return;}
+ if(!sb){authError('الاتصال غير متاح');return;}
+ try {const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/?recovery=1'});if(error)throw error;authOkMsg('إذا كان الحساب موجوداً، افحص بريدك الإلكتروني وافتح رابط استعادة كلمة المرور.');}catch(err){authError('تعذر إرسال رابط الاستعادة: '+err.message);}
+}
+async function setNewPassword(e){
+ e.preventDefault(); const pass=$('newPassword').value; const btn=e.target.querySelector('button');btn.disabled=true;
+ try {const {error}=await sb.auth.updateUser({password:pass});if(error)throw error; $('newPassword').value=''; await sb.auth.signOut(); history.replaceState(null,'',location.pathname); location.reload();}catch(err){authError('تعذر تغيير كلمة المرور: '+err.message);btn.disabled=false;}
+}
+function showRecovery(){
+ $('appRoot').style.display='none';$('authScreen').classList.remove('hidden');$('loginForm').style.display='none';$('forgotBtn').style.display='none';document.querySelector('.auth-tabs').style.display='none';$('recoveryForm').style.display='block';authOkMsg('اكتب كلمة مرور جديدة للحساب. قد تُستخدم أيضاً في التطبيقات الأخرى المرتبطة به.');
+}
 async function handleAuth(e){
   e.preventDefault();
   const email = $('authEmail').value.trim(), pass = $('authPass').value;
@@ -526,6 +540,7 @@ async function logout(){
   toast('تم تسجيل الخروج 👋');
 }
 async function initAuth(){
+  if(new URLSearchParams(location.search).has('recovery')){ if(!sb){authError('الاتصال غير متاح');return;} const {data}=await sb.auth.getSession(); if(data?.session) showRecovery(); else authError('الرابط غير صالح أو انتهت صلاحيته. اطلب رابطاً جديداً.'); return; }
   if(!sb){ enterGuest(); return; }
   try{
     const { data } = await sb.auth.getSession();
@@ -538,6 +553,7 @@ async function initAuth(){
 }
 if(sb){
   sb.auth.onAuthStateChange((event, session)=>{
+    if(event==='PASSWORD_RECOVERY' || new URLSearchParams(location.search).has('recovery')){if(session?.user) showRecovery(); return;}
     if(session?.user){ currentUser = session.user; guestMode=false; if($('authScreen').classList.contains('hidden')===false) enterApp(); }
   });
 }
@@ -1134,5 +1150,6 @@ $('todayLine').textContent = new Intl.DateTimeFormat('ar-EG',{weekday:'long', da
 $('datePill').textContent = new Intl.DateTimeFormat('ar-EG',{day:'numeric', month:'short', year:'numeric'}).format(new Date());
 initAuth();
 </script>
-</body>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5e94ad76ee04b31',t:'MTc5NTM2NDc0OQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5e94ad76ee04b31',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
