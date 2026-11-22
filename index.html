@@ -911,7 +911,7 @@ function renderAppointments(){
   box.innerHTML = list.map(a=>`<div class="item">
     <div class="thumb" style="background:#dbeafe">📅</div>
     <div class="body"><div class="title">${esc(a.title)}</div>
-    <div class="meta">${fmtDate(a.appointment_date)} ${a.start_time? '• '+esc(a.start_time):''} ${a.lesson_mode? '• '+esc(a.lesson_mode):''} ${a.location? '• 📍 '+esc(a.location):''} ${a.notes? '• '+esc(a.notes):''}</div></div>
+    <div class="meta">${fmtDate(a.appointment_date)} ${a.start_time? '• '+esc(a.start_time)+(a.end_time?' - '+esc(a.end_time):''):''} ${a.student_id && tutorData.students.find(x=>x.id===a.student_id)?'• '+esc(tutorData.students.find(x=>x.id===a.student_id).name):''} ${a.lesson_mode? '• '+esc(a.lesson_mode):''} ${a.location? '• 📍 '+esc(a.location):''} ${a.notes? '• '+esc(a.notes):''}</div></div>
     <div class="actions"><button class="btn btn-edit btn-sm" onclick="openEdit('appointments','${a.id}')">✏️ تعديل</button>
     <button class="btn btn-wa btn-sm" onclick="waAppt('${a.id}')">💬</button>
     <button class="btn btn-danger btn-sm" onclick="delItem('appointments','${a.id}')">🗑 حذف</button></div>
@@ -1093,11 +1093,20 @@ async function saveModal(e){
     if(f.type==='number') v = v==='' ? null : Number(v);
     row[f.k] = (v==='' ? null : v);
   });
+  let scheduleDates=null;
+  try{if(modalType==='appointments'){if(editing?.student_id&&!tutorReady)throw Error('تعذر تحميل الطالب المرتبط؛ اضغط تحديث في قسم الطلاب قبل التعديل');row.student_id=fd.get('_student_id')||null;row.end_time=resolveScheduleTime(fd,row.start_time);if(!editing)scheduleDates=computeScheduleDates(fd,row.appointment_date);}}catch(err){toast(err.message);btn.disabled=false;btn.textContent='💾 حفظ';return;}
   if(modalType==='finances' && (row.paid > row.amount || (row.kind==='مصروف' && row.paid!==0))){ toast('المقبوض لا يزيد عن الإجمالي وللمصروف أدخل صفر'); btn.disabled=false; btn.textContent='💾 حفظ'; return; }
   if(modalType==='finances') row.currency=row.currency.trim().toUpperCase();
   if(editing) row.id = editing.id;
   else if(!online) row.id = 'local-'+Date.now();
   try{
+    if(scheduleDates && scheduleDates.length>1){
+      if(!confirm(`سيتم إضافة ${scheduleDates.length} مواعيد منفصلة من ${scheduleDates[0]} إلى ${scheduleDates.at(-1)}. هل تريد المتابعة؟`)){btn.disabled=false;btn.textContent='💾 حفظ';return;}
+      if(online && sb && currentUser){const rows=scheduleDates.map(d=>({...row,appointment_date:d,user_id:currentUser.id}));const {data,error}=await sb.from('tracker_appointments').insert(rows).select();if(error)throw error;state.appointments.push(...data);}
+      else {const rows=scheduleDates.map((d,i)=>({...row,id:'local-'+crypto.randomUUID(),appointment_date:d}));state.appointments.push(...rows);saveLocal();}
+      closeModal();renderAll();toast(`تم حفظ ${scheduleDates.length} مواعيد ✅`);btn.disabled=false;btn.textContent='💾 حفظ';return;
+    }
+    if(scheduleDates?.length===1) row.appointment_date=scheduleDates[0];
     await dbUpsert(modalType, row);
     if(editing){
       const idx = state[modalType].findIndex(x=>x.id===editing.id);
@@ -1134,14 +1143,14 @@ async function loadTutor(){
  try{const results=await Promise.all(Object.values(tutorTables).map(t=>sb.from(t).select('*').eq('user_id',uid).order('created_at',{ascending:false})));
   if(results.some(r=>r.error)) throw results.find(r=>r.error).error;
   if(currentUser?.id!==uid)return;
-  tutorData={students:results[0].data||[],sessions:results[1].data||[],fees:results[2].data||[]};tutorReady=true;$('tutorStatus').textContent='متصل • بيانات حسابك فقط';renderTutor();
+  tutorData={students:results[0].data||[],sessions:results[1].data||[],fees:results[2].data||[]};tutorReady=true;$('tutorStatus').textContent='متصل • بيانات حسابك فقط';renderTutor();renderAppointments();
  }catch(e){$('tutorStatus').textContent='تعذّر تحميل بيانات الطلاب. تحقق من الاتصال ثم اضغط تحديث.';renderTutor();console.error(e);}
 }
 function clearTutorReport(){tutorReportData=null;if($('tutorReport'))$('tutorReport').textContent='';if($('tutorShare'))$('tutorShare').style.display='none';}
 function renderTutor(){
  const name=id=>tutorData.students.find(x=>x.id===id)?.name||'طالب غير متاح';
- $('tutorStudents').innerHTML=tutorData.students.map(x=>`<div class="item"><div class="body"><b>${esc(x.name)}</b><div class="meta">${esc(x.grade||'')} • ولي الأمر: ${esc(x.guardian_name||'—')} • ${esc(x.guardian_phone||'—')}</div></div><div class="actions"><button class="btn btn-edit btn-sm" onclick="tutorForm('students','${esc(x.id)}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deleteTutor('students','${esc(x.id)}')">حذف</button></div></div>`).join('')||'<p>لا يوجد طلاب بعد.</p>';
- $('tutorSessions').innerHTML=tutorData.sessions.slice().sort((a,b)=>b.session_date.localeCompare(a.session_date)).map(x=>`<div class="item"><div class="body"><b>${esc(name(x.student_id))} • ${esc(x.subject)}</b><div class="meta">${esc(x.session_date)} ${esc(x.start_time||'')} • ${esc(x.mode)} • ${esc(x.attendance)} • الواجب: ${esc(x.homework)} • التقدم: ${esc(x.progress)}</div></div><div class="actions"><button class="btn btn-edit btn-sm" onclick="tutorForm('sessions','${esc(x.id)}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deleteTutor('sessions','${esc(x.id)}')">حذف</button></div></div>`).join('')||'<p>لا توجد حصص بعد.</p>';
+ $('tutorStudents').innerHTML=tutorData.students.map(x=>`<div class="item"><div class="body"><b>${esc(x.name)}</b><div class="meta">${esc(x.grade||'')}${x.grade_level?' • '+esc(x.grade_level):''} • ولي الأمر: ${esc(x.guardian_name||'—')} • ${esc(x.guardian_phone||'—')}</div></div><div class="actions"><button class="btn btn-edit btn-sm" onclick="tutorForm('students','${esc(x.id)}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deleteTutor('students','${esc(x.id)}')">حذف</button></div></div>`).join('')||'<p>لا يوجد طلاب بعد.</p>';
+ $('tutorSessions').innerHTML=tutorData.sessions.slice().sort((a,b)=>b.session_date.localeCompare(a.session_date)).map(x=>`<div class="item"><div class="body"><b>${esc(name(x.student_id))} • ${esc(x.subject)}</b><div class="meta">${esc(x.session_date)} ${esc(x.start_time||'')}${x.end_time?' - '+esc(x.end_time):''} • ${esc(x.mode)} • ${esc(x.attendance)} • الواجب: ${esc(x.homework)} • التقدم: ${esc(x.progress)}</div></div><div class="actions"><button class="btn btn-edit btn-sm" onclick="tutorForm('sessions','${esc(x.id)}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deleteTutor('sessions','${esc(x.id)}')">حذف</button></div></div>`).join('')||'<p>لا توجد حصص بعد.</p>';
  $('tutorFees').innerHTML=tutorData.fees.map(x=>`<div class="item"><div class="body"><b>${esc(name(x.student_id))} • ${esc(x.fee_date)}</b><div class="meta">الإجمالي ${esc(x.amount)} ${esc(x.currency)} • المدفوع ${esc(x.paid)} • المتبقي ${esc((Number(x.amount)-Number(x.paid)).toFixed(2))}</div></div><div class="actions"><button class="btn btn-edit btn-sm" onclick="tutorForm('fees','${esc(x.id)}')">تعديل</button><button class="btn btn-danger btn-sm" onclick="deleteTutor('fees','${esc(x.id)}')">حذف</button></div></div>`).join('')||'<p>لا توجد رسوم بعد.</p>';
  const select=$('tutorReportStudent'),old=select.value;select.innerHTML='<option value="">اختر الطالب</option>'+tutorData.students.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('');if(tutorData.students.some(x=>x.id===old)) select.value=old;
  if(!$('tutorReportStart').value){const d=new Date();d.setDate(d.getDate()-6);$('tutorReportStart').value=localTutorDate(d);}
@@ -1157,6 +1166,7 @@ function tutorForm(type,id){
  if(type==='students'){
  html+=tutorField('اسم الطالب',`<input name="name" required maxlength="120" value="${esc(row.name||'')}">`);
  html+=tutorField('المرحلة الدراسية',tutorOptions('grade',['ابتدائي','متوسط','ثانوي','جامعي','أخرى'],row.grade,false));
+ html+=tutorField('الصف الدراسي / Grade',tutorOptions('grade_level',['KG 1','KG 2',...Array.from({length:12},(_,i)=>'Grade '+(i+1)),'جامعي','أخرى'],row.grade_level,false));
  html+=tutorField('اسم ولي الأمر',`<input name="guardian_name" maxlength="120" value="${esc(row.guardian_name||'')}">`);
  html+=tutorField('رقم واتساب ولي الأمر بكود الدولة',`<input name="guardian_phone" type="tel" dir="ltr" placeholder="+9665XXXXXXXX" value="${esc(row.guardian_phone||'')}">`);
  }else{
@@ -1175,23 +1185,50 @@ function tutorForm(type,id){
  html+=tutorField('الإجمالي — أضف المبالغ من إعداد الاختيارات',tutorOptions('amount',amts,row.amount));html+=tutorField('المدفوع',tutorOptions('paid',paid,row.paid));
  html+=tutorField('العملة',tutorOptions('currency',tutorCurrencies.map(c=>[c,(currencyNames[c]||c)+' — '+c]),row.currency));
  }}
- $('formFields').innerHTML=html;$('modalTitle').textContent= (id?'تعديل ':'إضافة ')+({students:'طالب',sessions:'حصة',fees:'رسوم'})[type];
+ $('formFields').innerHTML=html;if(type==='sessions') addScheduleControls(row,!!id,false);$('modalTitle').textContent= (id?'تعديل ':'إضافة ')+({students:'طالب',sessions:'حصة',fees:'رسوم'})[type];
  $('modalDesc').textContent='الحفظ في حسابك على Supabase';$('modalForm').onsubmit=saveTutor;$('overlay').classList.add('open');
 }
-async function saveTutor(e){e.preventDefault();if(!tutorReady||!currentUser){toast('الاتصال غير متاح');return;}const fd=new FormData(e.target),row={user_id:currentUser.id}; for(const [k,v] of fd.entries())row[k]=String(v).trim()||null;
+async function saveTutor(e){e.preventDefault();if(!tutorReady||!currentUser){toast('الاتصال غير متاح');return;}const fd=new FormData(e.target),row={user_id:currentUser.id}; for(const [k,v] of fd.entries())if(!k.startsWith('_'))row[k]=String(v).trim()||null;
+ let scheduleDates=null;try{if(tutorType==='sessions'){row.end_time=resolveScheduleTime(fd,row.start_time);if(!tutorEditing)scheduleDates=computeScheduleDates(fd,row.session_date);}}catch(err){toast(err.message);return;}
  if(tutorType==='students'){if(!row.name){toast('اسم الطالب مطلوب');return;}if(row.guardian_phone){let raw=row.guardian_phone.replace(/[\s()-]/g,'');if(raw.startsWith('00'))raw='+'+raw.slice(2);if(!/^\+[1-9]\d{7,14}$/.test(raw)){toast('أدخل الرقم بكود الدولة مثل +966...');return;}row.guardian_phone=raw;}}
  if(tutorType==='fees'){row.amount=Number(row.amount);row.paid=Number(row.paid);if(!Number.isFinite(row.amount)||!Number.isFinite(row.paid)||row.amount<0||row.paid<0||row.paid>row.amount){toast('المدفوع يجب أن يكون بين صفر والإجمالي');return;}}
  if(tutorEditing)row.id=tutorEditing;const btn=$('saveBtn');btn.disabled=true;
- try{const {error}=await sb.from(tutorTables[tutorType]).upsert(row);if(error)throw error;closeModal();await loadTutor();toast('تم الحفظ ✅');}catch(err){toast('تعذر الحفظ: '+err.message);}finally{btn.disabled=false;}
+ try{if(scheduleDates&&scheduleDates.length>1){if(!confirm(`سيتم إضافة ${scheduleDates.length} حصص منفصلة من ${scheduleDates[0]} إلى ${scheduleDates.at(-1)}. هل تريد المتابعة؟`))return;const rows=scheduleDates.map(d=>({...row,session_date:d}));const {error}=await sb.from(tutorTables.sessions).insert(rows);if(error)throw error;}else {if(scheduleDates?.length===1)row.session_date=scheduleDates[0];const {error}=await sb.from(tutorTables[tutorType]).upsert(row);if(error)throw error;}closeModal();await loadTutor();toast('تم الحفظ ✅');}catch(err){toast('تعذر الحفظ: '+err.message);}finally{btn.disabled=false;}
 }
 async function deleteTutor(type,id){if(!tutorReady||!tutorTables[type])return;if(!confirm(type==='students'?'حذف الطالب؟ لن يمكن الحذف إذا كانت له حصص أو رسوم مرتبطة.':'هل تريد حذف السجل؟'))return;
  try{const {error}=await sb.from(tutorTables[type]).delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;await loadTutor();toast('تم الحذف');}catch(err){toast(type==='students'?'تعذّر الحذف؛ احذف الحصص والرسوم المرتبطة أولاً.':'تعذّر الحذف: '+err.message);}}
 function makeTutorReport(){clearTutorReport();const id=$('tutorReportStudent').value,start=$('tutorReportStart').value,student=tutorData.students.find(x=>x.id===id);if(!tutorReady||!student||!start){toast('اختر الطالب وتاريخ البداية');return;}
  const d=new Date(start+'T12:00:00');d.setDate(d.getDate()+6);const end=localTutorDate(d);const sessions=tutorData.sessions.filter(x=>x.student_id===id&&x.session_date>=start&&x.session_date<=end).sort((a,b)=>a.session_date.localeCompare(b.session_date));
  const lines=[`تقرير الطالب: ${student.name}`,`الفترة: ${start} إلى ${end}`,`عدد الحصص: ${sessions.length}`,`الحضور: ${sessions.filter(x=>x.attendance==='حضر').length} • الغياب: ${sessions.filter(x=>x.attendance==='غائب').length}`,''];
- if(!sessions.length)lines.push('لا توجد حصص مسجلة في الفترة.'); else sessions.forEach(x=>lines.push(`${x.session_date} • ${x.subject} • ${x.mode} • ${x.attendance} • الواجب: ${x.homework} • التقدم: ${x.progress}`));
+ if(!sessions.length)lines.push('لا توجد حصص مسجلة في الفترة.'); else sessions.forEach(x=>lines.push(`${x.session_date} ${x.start_time||''}${x.end_time?' - '+x.end_time:''} • ${x.subject} • ${x.mode} • ${x.attendance} • الواجب: ${x.homework} • التقدم: ${x.progress}`));
  tutorReportData={id,text:lines.join('\n'),phone:student.guardian_phone||''};$('tutorReport').textContent=tutorReportData.text;$('tutorShare').style.display='inline-flex';}
 function shareTutorReport(){if(!tutorReportData)return;const st=tutorData.students.find(x=>x.id===tutorReportData.id);if(!st||!tutorReportData.phone){toast('أضف رقم ولي الأمر أولاً');return;}if(!confirm(`راجع التقرير ورقم ولي أمر ${st.name}: ${tutorReportData.phone}. فتح واتساب للإرسال اليدوي؟`))return;window.open('https://wa.me/'+tutorReportData.phone.replace(/\D/g,'')+'?text='+encodeURIComponent(tutorReportData.text),'_blank','noopener');}
+// Scheduled occurrences are stored as separate records; editing affects only one occurrence.
+function addScheduleControls(data,isEdit,includeStudent){
+ const f=$('formFields');let html='';
+ if(includeStudent){const students=tutorReady?tutorData.students:[];html+=tutorField('الطالب (اختياري)',tutorOptions('_student_id',students.map(x=>[x.id,x.name]),data.student_id,false));if(!tutorReady) html+='<div class="field full"><small>سجّل الدخول واضغط تحديث في قسم الطلاب لاختيار طالب.</small></div>';}
+ const hasEnd=!!data.end_time;
+ html+=tutorField('طريقة تحديد مدة الحصة',`<select name="_time_method" onchange="scheduleToggle(this.form)"><option value="duration" ${!hasEnd?'selected':''}>مدة الحصة</option><option value="end" ${hasEnd?'selected':''}>وقت الانتهاء</option></select>`);
+ html+=`<div class="field" data-schedule-duration><label>المدة</label><select name="_duration"><option value="">بدون مدة</option><option value="30">نصف ساعة</option><option value="45">45 دقيقة</option><option value="60">ساعة</option><option value="90">ساعة ونصف</option><option value="120">ساعتان</option><option value="150">ساعتان ونصف</option><option value="180">ثلاث ساعات</option></select></div>`;
+ html+=`<div class="field" data-schedule-end><label>وقت الانتهاء</label><input type="time" name="_end" value="${esc((data.end_time||'').slice(0,5))}"></div>`;
+ if(!isEdit){html+=`<div class="field full"><label>التكرار</label><select name="_repeat" onchange="scheduleToggle(this.form)"><option value="none">مرة واحدة</option><option value="weeks">أيام أسبوعية لعدد أسابيع</option><option value="end">أيام أسبوعية حتى تاريخ</option></select></div><div class="field full" data-repeat-days><label>أيام الحصة كل أسبوع (اختر الأيام = عدد المرات)</label><div style="display:flex;flex-wrap:wrap;gap:10px">${['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'].map((name,i)=>`<label style="display:inline-flex;align-items:center;gap:4px"><input type="checkbox" name="_weekday" value="${i}">${name}</label>`).join('')}</div><small>تبدأ المواعيد من تاريخ البداية، بنفس الوقت لكل يوم.</small></div><div class="field" data-repeat-weeks><label>عدد الأسابيع من تاريخ البداية</label><select name="_weeks">${Array.from({length:52},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select></div><div class="field" data-repeat-end><label>تاريخ آخر تكرار شامل</label><input name="_until" type="date"></div>`;}
+ else html+='<div class="field full"><small>التعديل يخص هذا الموعد فقط، وليس بقية المواعيد التي أُنشئت معه.</small></div>';
+ f.insertAdjacentHTML('beforeend',html);scheduleToggle($('modalForm'));
+}
+function scheduleToggle(form){const method=form.elements._time_method?.value||'duration',repeat=form.elements._repeat?.value||'none';for(const [attr,show] of [['data-schedule-duration',method==='duration'],['data-schedule-end',method==='end'],['data-repeat-days',repeat!=='none'],['data-repeat-weeks',repeat==='weeks'],['data-repeat-end',repeat==='end']]){let el=form.querySelector('['+attr+']');if(el){el.style.display=show?'':'none';el.querySelectorAll('input,select').forEach(x=>x.disabled=!show);}}}
+function resolveScheduleTime(fd,start){const method=fd.get('_time_method');const dur=Number(fd.get('_duration')||0),end=fd.get('_end')||'';
+ if(!start){if(dur||end)throw Error('اختر وقت البداية أولاً');return null;}
+ const parse=t=>{const m=/^(\d{2}):(\d{2})/.exec(t);return m?+m[1]*60+(+m[2]):NaN;};const begin=parse(start);if(!Number.isFinite(begin))throw Error('وقت البداية غير صالح');
+ if(method==='duration'&&dur){const finish=begin+dur;if(finish>=1440)throw Error('وقت الانتهاء يجب أن يكون في اليوم نفسه');return String(Math.floor(finish/60)).padStart(2,'0')+':'+String(finish%60).padStart(2,'0');}
+ if(method==='end'&&end){if(parse(end)<=begin)throw Error('وقت الانتهاء يجب أن يكون بعد البداية وفي اليوم نفسه');return end;}
+ return null;
+}
+function computeScheduleDates(fd,start){const repeat=fd.get('_repeat')||'none';if(repeat==='none')return [start];if(!/^\d{4}-\d{2}-\d{2}$/.test(start||''))throw Error('اختر تاريخ البداية');
+ const days=fd.getAll('_weekday').map(Number);if(!days.length)throw Error('اختر أيام التكرار');const first=new Date(start+'T12:00:00');let end;
+ if(repeat==='weeks'){const weeks=Number(fd.get('_weeks'));if(!Number.isInteger(weeks)||weeks<1||weeks>52)throw Error('اختر عدد أسابيع صحيحاً');end=new Date(first);end.setDate(end.getDate()+weeks*7-1);}else{const until=fd.get('_until');if(!/^\d{4}-\d{2}-\d{2}$/.test(until||''))throw Error('اختر تاريخ نهاية التكرار');end=new Date(until+'T12:00:00');if(end<first)throw Error('نهاية التكرار قبل تاريخ البداية');}
+ const limit=new Date(first);limit.setDate(limit.getDate()+365);if(end>limit)throw Error('الحد الأقصى للتكرار سنة واحدة');const dates=[];for(let d=new Date(first);d<=end;d.setDate(d.getDate()+1)){if(days.includes(d.getDay()))dates.push(localTutorDate(d));if(dates.length>200)throw Error('الحد الأقصى 200 موعد في المرة الواحدة');}if(!dates.length)throw Error('لا يوجد يوم مطابق خلال المدة المحددة');return dates;
+}
+
 // Switching between the tutor editor and the main dashboard form must restore its handler.
 const openAddOriginal=openAdd,openEditOriginal=openEdit;
 openAdd=function(type){if(type!=='tutoring'){$('modalForm').onsubmit=saveModal;$('modalDesc').textContent='املأ البيانات وسيتم الحفظ أونلاين في Supabase';}return openAddOriginal(type);};
@@ -1271,6 +1308,6 @@ $('todayLine').textContent = new Intl.DateTimeFormat('ar-EG',{weekday:'long', da
 $('datePill').textContent = new Intl.DateTimeFormat('ar-EG',{day:'numeric', month:'short', year:'numeric'}).format(new Date());
 initAuth();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5e97d2ee83a185c',t:'MTc5NTM2NjgxMQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5e97d2ee83a185c',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5e99c212a777226',t:'MTc5NTM2ODA3OQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5e99c212a777226',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
